@@ -14,10 +14,6 @@ date: 2026-05-13
 last_modified_at: 2026-05-13 17:31:44
 ---
 
-# RequestContextHolder
-
-정확도 94%
-
 ## 1. `RequestContextHolder`란?
 
 `RequestContextHolder`는 Spring Web에서 **현재 HTTP 요청 정보를 현재 실행 중인 Thread에 묶어 보관하는 Holder 클래스**입니다. 공식 Javadoc 기준으로 현재 웹 요청을 `RequestAttributes` 형태로 **thread-bound object**로 노출하며, `inheritable=true` 설정 시 자식 Thread로도 상속될 수 있습니다. 또한 Spring MVC의 `DispatcherServlet`은 기본적으로 현재 요청을 `RequestContextHolder`에 노출합니다. ([Spring Enterprise Documentation](https://docs.enterprise.spring.io/spring-framework/docs/5.3.46/javadoc-api/org/springframework/web/context/request/RequestContextHolder.html "RequestContextHolder (Spring Framework 5.3.46 API)"))  

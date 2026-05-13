@@ -14,8 +14,6 @@ date: 2026-05-13
 last_modified_at: 2026-05-13 17:35:07
 ---
 
-# Apple Login  단계 별 추적
-
 ## 예제
 ```java
 URL requestUrl = new URL("https://appleid.apple.com/auth/token");

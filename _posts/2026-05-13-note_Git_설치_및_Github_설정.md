@@ -14,8 +14,6 @@ date: 2026-05-13
 last_modified_at: 2026-05-13 17:33:00
 ---
 
-# Git 설치 및 Github 설정
-
 ## 1. Git 설치
 ```bash
 winget install --id Git.Git -e --source winget

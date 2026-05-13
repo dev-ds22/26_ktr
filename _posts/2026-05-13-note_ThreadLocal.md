@@ -15,8 +15,6 @@ date: 2026-05-13
 last_modified_at: 2026-05-13
 ---
 
-# Spring Framework 5.3에서 `ThreadLocal` + `ProceedingJoinPoint.proceed()` 기반 Proxy Advisor 구현
-
 ## 1. 결론
 
 가능하다. Spring Boot 없이 **Spring Framework 5.3 + XML 설정 + `@Aspect` + `@Around` + `ProceedingJoinPoint.proceed()`** 방식으로 구현하면 된다.  
