@@ -1,0 +1,197 @@
+/* Make .button-container more specific */
+.sc-button-container {
+  margin-bottom: 10px;
+}
+
+/* Codeblock container border and padding */
+.sc-dynamic-codeblock {
+  border: 1px solid var(--color-border);
+  padding: 8px;
+  margin: 0;
+}
+
+/* Layout for the top row of codeblock UI */
+.sc-top-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Help icon button in top row */
+.sc-help-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  height: 28px;
+  width: 28px;
+}
+
+.sc-help-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* "Add thread" button (ChatGPT detected threads) */
+.sc-add-thread-button {
+  white-space: nowrap;
+}
+
+/* Layout for the bottom row of codeblock UI */
+.sc-bottom-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.sc-bottom-row-left,
+.sc-bottom-row-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  align-self: start;
+}
+
+/* Status text on top row */
+.sc-status-text {
+  margin-left: auto;
+}
+
+/* A hidden element class for toggling display. */
+.sc-hidden {
+  display: none;
+}
+
+/* The embedded ChatGPT webview. Use a custom property for height. */
+.sc-webview {
+  width: 100%;
+  height: var(--sc-webview-height, 800px);
+}
+
+/* Link dropdown styling if needed */
+.sc-link-dropdown {
+  max-width: 300px;
+}
+
+.sc-dropdown-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sc-dropdown-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Thread state chip next to dropdown */
+.sc-thread-state-chip {
+  font-size: 0.85em;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.sc-thread-state-chip.sc-state-active {
+  color: var(--text-accent);
+  border-color: var(--text-accent);
+}
+
+.sc-thread-state-chip.sc-state-done {
+  opacity: 0.85;
+}
+
+.sc-thread-state-chip.sc-state-unsaved {
+  color: var(--text-faint);
+}
+
+.sc-mobile-hint {
+  display: none;
+  color: var(--text-muted);
+  font-size: 0.9em;
+  line-height: 1.2;
+}
+
+/* ------------------------------------------------------------------ */
+/* Tooltips (aria-label based)                                         */
+/* ------------------------------------------------------------------ */
+
+.sc-bottom-row button[aria-label] {
+  position: relative;
+}
+
+.sc-bottom-row button[aria-label]:hover::after,
+.sc-bottom-row button[aria-label]:focus-visible::after {
+  content: attr(aria-label);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  border: 1px solid var(--color-border);
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 0.85em;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.sc-bottom-row button[aria-label]:hover::before,
+.sc-bottom-row button[aria-label]:focus-visible::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--color-border);
+  z-index: 1000;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Mobile / no-webview fallback                                        */
+/* ------------------------------------------------------------------ */
+
+.sc-no-webview .sc-webview {
+  display: none;
+}
+
+.sc-no-webview .sc-mobile-hint {
+  display: block;
+}
+
+/* Hide buttons that depend on the embedded webview (Refresh + Grow/Contain). */
+.sc-no-webview .sc-footer-refresh,
+.sc-no-webview .sc-footer-grow {
+  display: none;
+}
+
+/* Keep CodeMirror block-widget layout stable across themes.
+   Narrowly overrides themes like LYT that remove containment from
+   top-level non-editable CM6 embeds. */
+/* THIS MAY BE OK TO REMOVE (removing vertical margin from .sc-dynamic-codeblock should be sufficient):
+LEAVING TEMPORARILY IN CASE NOTICING THE ISSUE AGAIN */
+/* .markdown-source-view.mod-cm6 .cm-content > [contenteditable=false]:has(.sc-dynamic-codeblock) {
+  contain: layout !important;
+} */
+
+/* Hide "New thread" options on mobile (v2 should replace with opening new externally) */
+.sc-dynamic-codeblock.sc-is-mobile.sc-no-webview {
+  option:not(.sc-is-thread) {
+    display: none;
+  }
+}

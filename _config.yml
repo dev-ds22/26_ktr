@@ -17,17 +17,17 @@ minimal_mistakes_skin    : sunrise # "default" # "air", "aqua", "contrast", "dar
 
 # Site Settings
 locale                   : "ko-KR"
-title                    : "Dev-DS22 Tech Note."
+title                    : "26_KRT Tech Note."
 title_separator          : "&#124;"
 subtitle                 : # site tagline that appears below site title in masthead
-name                     : "Dev-DS22 Tech"
-description              : "Dev-DS22 Tech Note. Version 0.1"
+name                     : "26_KRT Tech"
+description              : "26_KRT Tech Note. Version 0.1"
 url                      : "https://dev-ds22.github.io/"
 baseurl                  : # the subpath of your site, e.g. "/blog"
 repository               : # GitHub username/repo-name e.g. "mmistakes/minimal-mistakes"
 teaser                   : # path of fallback teaser image, e.g. "/assets/images/500x300.png"
 logo                     : # path of logo image to display in the masthead, e.g. "/assets/images/88x88.png"
-masthead_title           : "Dev-DS22 Tech Note."
+masthead_title           : "26_KRT Tech Note."
 breadcrumbs              : false # true, false (default)
 words_per_minute         : 200
 comments:
@@ -103,9 +103,9 @@ analytics:
 
 # Site Author
 author:
-  name             : "M2M Dev-DS22 Tech"
-  avatar           : images/profile/img_mmall.jpg # path of avatar image, e.g. "/assets/images/bio-photo.jpg"
-  bio              : "Dev-DS22 Tech Note."
+  name             : "Wontae. Kim"
+  avatar           : images/profile/wontae_kim_logo.png # path of avatar image, e.g. "/assets/images/bio-photo.jpg"
+  bio              : "26_KRT Tech Note."
   # location         : "Seoul"
   # email            : "wontae_k@m2mglobal.co.kr"
   links:
