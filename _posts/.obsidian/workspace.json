@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Apple Login.md",
+                "file": "Gitlab 배포.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Apple Login"
+              "title": "Gitlab 배포"
             }
           }
         ]
@@ -78,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 200
   },
   "right": {
     "id": "f1a6eead35d85e72",
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "Apple Login.md",
+                "file": "Gitlab 배포.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Apple Login 의 백링크"
+              "title": "Gitlab 배포 의 백링크"
             }
           },
           {
@@ -193,15 +193,27 @@
       "bases:새 베이스 생성하기": false,
       "obsidian-excalidraw-plugin:New drawing": false,
       "table-editor-obsidian:Advanced Tables Toolbar": false,
-      "remotely-save:Remotely Save": false
+      "remotely-save:Remotely Save": false,
+      "zk-prefixer:새 고유 노트 생성": false,
+      "templater-obsidian:Templater": false
     }
   },
   "active": "63e1e688d875b3b7",
   "lastOpenFiles": [
+    "_template/jekyll-tech-output.md",
+    "2025-11-28-dev_ready_issue_elastic.md",
+    "안녕.md",
+    "_template/Template.md",
+    "_template",
+    "Apple Login.md",
+    "무제 1.md",
+    "환영합니다!.md",
+    "Template.md",
+    "2025-11-28-dev_ready_issue_elastic - 복사본.md",
+    "2025-01-02-threadlocal - 복사본.markdown",
     "2025-12-15-dev_kafka_set_zookeeper.md",
     "2025-11-30-dev_ready_issue_code_quality.md",
     "2025-11-30-dev_ready_issue_architecture.md",
-    "2025-11-28-dev_ready_issue_elastic.md",
     "2025-01-02-threadlocal.markdown",
     "2022-11-30-dev_ready_issue_code_quality.md",
     "2022-11-30-dev_ready_issue_architecture.md",
@@ -217,14 +229,6 @@
     "Spring Batch xml 설정.md",
     "ResourcesVersioning 에서의 접근경로 변환.md",
     "Spring Proxy이용.md",
-    "CDN - Akamai 분석.md",
-    "2026-04-24.md",
-    "Gitlab - Nexus.md",
-    "Server Install.md",
-    "2026-04-27.md",
-    "[Spring] - CGLIB방식.md",
-    "Sleep 추적.md",
-    "2026-04-28.md",
     "2020-01-02-welcome-to-jekyll.markdown",
     "2020-01-02-post1.markdown",
     "2020-01-02-threadlocal.markdown"

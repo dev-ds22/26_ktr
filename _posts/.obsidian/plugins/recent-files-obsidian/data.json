@@ -1,6 +1,18 @@
 {
   "recentFiles": [
     {
+      "basename": "Gitlab 배포",
+      "path": "Gitlab 배포.md"
+    },
+    {
+      "basename": "2025-11-28-dev_ready_issue_elastic",
+      "path": "2025-11-28-dev_ready_issue_elastic.md"
+    },
+    {
+      "basename": "Apple Login",
+      "path": "Apple Login.md"
+    },
+    {
       "basename": "Git 설치 및 Github 설정",
       "path": "Git 설치 및 Github 설정.md"
     },
@@ -33,10 +45,6 @@
       "path": "2026-05-08.md"
     },
     {
-      "basename": "Apple Login",
-      "path": "Apple Login.md"
-    },
-    {
       "basename": "DBCP2 설정",
       "path": "DBCP2 설정.md"
     },
@@ -47,14 +55,6 @@
     {
       "basename": "Gitlab - Nexus",
       "path": "Gitlab - Nexus.md"
-    },
-    {
-      "basename": "Gitlab 배포",
-      "path": "Gitlab 배포.md"
-    },
-    {
-      "basename": "무제 1",
-      "path": "무제 1.md"
     },
     {
       "basename": "Sleep 추적",

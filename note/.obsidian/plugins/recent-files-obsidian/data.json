@@ -1,0 +1,16 @@
+{
+  "recentFiles": [
+    {
+      "basename": "ThreadLocal",
+      "path": "ThreadLocal.md"
+    },
+    {
+      "basename": "jekyll-tech-output",
+      "path": "_template/jekyll-tech-output.md"
+    }
+  ],
+  "omittedPaths": [],
+  "omittedTags": [],
+  "updateOn": "file-open",
+  "omitBookmarks": false
+}

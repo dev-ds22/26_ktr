@@ -1,0 +1,576 @@
+
+이하 spring dbcp설정에서 Connection reset by peer가 빈번히 발생시 서버와 DB에 부하를 가장 적게하는 최선의 수정안 제시	
+```
+<property name="initialSize" value="10"/>
+<property name="maxTotal" value="100"/>
+<property name="maxIdle" value="10"/>
+<property name="minIdle" value="10"/>
+<property name="maxWaitMillis" value="5000"/>
+<property name="validationQuery" value="SELECT 1"/>
+<property name="validationQueryTimeout" value="3"/>
+<property name="testOnBorrow" value="false"/>
+<property name="testOnReturn" value="false"/>
+<property name="testWhileIdle" value="true"/>
+<property name="timeBetweenEvictionRunsMillis" value="120000"/>
+<property name="numTestsPerEvictionRun" value="10"/>
+<property name="minEvictableIdleTimeMillis" value="-1"/>
+<property name="poolPreparedStatements" value="true"/>
+<property name="maxOpenPreparedStatements" value="50"/>
+```
+marid DB
+DEV
+max_connection : 300
+wait_timeout : 600
+interactive_timeout : 600
+
+정확도: 94%
+
+## 결론
+
+`minEvictableIdleTimeMillis`는 **idle 상태의 커넥션이 풀 안에서 최소 얼마 동안 놀고 있으면 Evictor가 제거 대상으로 볼 것인지**를 정하는 값입니다. 즉, **검증 주기**가 아니라 **idle 커넥션 폐기 기준 시간**입니다. 값을 설정하지 않으면 DBCP 기본값은 `1000 * 60 * 30`, 즉 **30분**입니다. ([Apache Commons](https://commons.apache.org/dbcp/configuration.html "BasicDataSource Configuration – Apache Commons DBCP"))
+
+## 현재 설정의 동작 의미
+
+```xml
+<property name="testWhileIdle" value="true"/>
+<property name="timeBetweenEvictionRunsMillis" value="120000"/>
+<property name="numTestsPerEvictionRun" value="10"/>
+```
+
+|항목|현재값|의미|
+|---|--:|---|
+|`testWhileIdle`|`true`|Evictor가 idle 커넥션을 검사할 때 유효성 검증 수행|
+|`timeBetweenEvictionRunsMillis`|`120000`|Evictor가 2분마다 실행|
+|`numTestsPerEvictionRun`|`10`|Evictor 1회 실행 시 idle 커넥션 최대 10개 검사|
+|`minEvictableIdleTimeMillis`|미설정 시 30분|idle 상태가 30분 이상이면 제거 후보|
+
+`testWhileIdle=true`이면 idle object evictor가 커넥션을 검증하고, 검증 실패 시 해당 커넥션을 풀에서 제거합니다. `timeBetweenEvictionRunsMillis`가 0 이하이면 Evictor가 실행되지 않지만, 현재 값은 양수이므로 2분마다 실행됩니다. ([Apache Commons](https://commons.apache.org/dbcp/configuration.html "BasicDataSource Configuration – Apache Commons DBCP"))
+
+## `minEvictableIdleTimeMillis`의 핵심 동작
+
+예를 들어 아래처럼 설정하면:
+
+```xml
+<property name="minEvictableIdleTimeMillis" value="600000"/>
+```
+
+의미는 다음과 같습니다.
+
+```text
+idle 상태로 10분 이상 지난 커넥션은 Evictor 검사 시 제거 대상이 될 수 있다.
+```
+
+단, **정확히 10분이 되는 순간 바로 제거되는 것은 아닙니다.** Evictor가 실행되어야 하고, 그 실행 시점에 해당 커넥션이 `numTestsPerEvictionRun` 검사 대상에 포함되어야 합니다.
+
+## 현재 설정 기준 예상
+
+현재 설정이 다음과 같다면:
+
+```text
+timeBetweenEvictionRunsMillis = 120000ms = 2분
+numTestsPerEvictionRun = 10
+```
+
+idle 커넥션 수가 10개 이하라면 대략 2분마다 전체 idle 커넥션이 검사됩니다. 하지만 idle 커넥션이 50개라면 한 번에 10개만 검사하므로, 전체 idle 커넥션이 한 바퀴 검사되는 데 대략 `2분 * 5회 = 10분` 정도 걸릴 수 있습니다. `numTestsPerEvictionRun`은 Evictor 1회 실행 시 검사할 객체 수를 의미합니다. ([Apache Commons](https://commons.apache.org/dbcp/configuration.html "BasicDataSource Configuration – Apache Commons DBCP"))
+
+## 설정 시 가장 중요한 주의사항
+
+### 1. DB/L4 idle timeout보다 짧게 잡아야 함
+
+`minEvictableIdleTimeMillis`는 보통 **DB의 `wait_timeout` 또는 L4/방화벽 idle timeout보다 짧게** 잡는 것이 안전합니다. MariaDB는 `wait_timeout`, `interactive_timeout`에 의해 일정 시간 비활성 연결을 종료할 수 있습니다. ([MariaDB](https://mariadb.com/docs/server/reference/sql-statements/transactions/transaction-timeouts "Transaction Timeouts | Server | MariaDB Documentation"))  
+운영 기준은 다음처럼 잡는 것이 안전합니다.
+
+```text
+minEvictableIdleTimeMillis + Evictor 검사 지연 시간 < DB 또는 L4의 idle timeout
+```
+
+예를 들어 L4가 idle TCP 연결을 5분 후 끊는 구조라면 `minEvictableIdleTimeMillis=300000`은 위험할 수 있습니다. Evictor가 2분마다 돌고, 검사 대상이 밀리면 실제 제거가 5분을 넘길 수 있기 때문입니다.
+
+### 2. 너무 크게 잡으면 끊어진 커넥션이 오래 남을 수 있음
+
+예를 들어 DB나 L4가 10분 idle 연결을 끊는데 `minEvictableIdleTimeMillis`가 기본값 30분이면, 풀에는 이미 외부에서 끊긴 커넥션이 남아 있을 수 있습니다. 이 경우 애플리케이션이 해당 커넥션을 빌릴 때 `Connection reset by peer`, `Communications link failure`, `No operations allowed after connection closed` 계열 오류가 발생할 수 있습니다.
+
+### 3. 너무 작게 잡으면 커넥션 생성/폐기가 반복될 수 있음
+
+값을 너무 작게 잡으면 idle 커넥션이 자주 닫히고 다시 생성됩니다. 특히 `minIdle`을 크게 잡아둔 경우에는 Evictor가 커넥션을 닫고, 풀은 다시 최소 idle 수를 맞추기 위해 새 커넥션을 만들 수 있습니다. 결과적으로 DB 접속/인증 부하와 커넥션 churn이 증가합니다. DBCP 문서도 `maxIdle`이 너무 낮으면 닫고 다시 여는 현상이 발생할 수 있다고 설명합니다. ([Apache Commons](https://commons.apache.org/dbcp/configuration.html "BasicDataSource Configuration – Apache Commons DBCP"))
+
+### 4. `minIdle`을 보존하고 싶으면 `softMinEvictableIdleTimeMillis` 검토
+
+`minEvictableIdleTimeMillis`는 hard 기준입니다. 양수로 설정되면 Evictor가 먼저 이 값을 보고, 이 비교는 idle 커넥션 수가 `minIdle`보다 많은지 여부와 무관하게 적용됩니다. 반면 `softMinEvictableIdleTimeMillis`는 `minIdle` 개수를 유지하는 조건이 붙습니다. ([Apache Commons](https://commons.apache.org/dbcp/configuration.html "BasicDataSource Configuration – Apache Commons DBCP"))  
+즉, 최소 idle 커넥션 수를 유지하고 싶다면 아래 구조가 더 안전할 수 있습니다.
+
+```xml
+<property name="minEvictableIdleTimeMillis" value="-1"/>
+<property name="softMinEvictableIdleTimeMillis" value="600000"/>
+```
+
+다만 운영에서는 DBCP 버전과 실제 Spring 설정 방식에 따라 적용 가능 여부를 확인해야 합니다.
+
+## 권장 판단 기준
+
+|상황|권장 방향|
+|---|---|
+|DB/L4가 idle 연결을 짧게 끊음|`minEvictableIdleTimeMillis`를 그보다 충분히 짧게 설정|
+|idle 커넥션이 많음|`numTestsPerEvictionRun`을 너무 작게 두지 않음|
+|DB 부하가 민감함|`timeBetweenEvictionRunsMillis`를 너무 짧게 하지 않음|
+|`minIdle` 유지가 중요함|`softMinEvictableIdleTimeMillis` 검토|
+|운영 중 `Connection reset by peer` 발생|DB/L4 timeout, Evictor 주기, 검사 개수, validationQuery timeout 함께 점검|
+
+## 현재 설정에서 실무 권장 예시
+
+DB 또는 L4 idle timeout이 **10분 이상**이라는 전제라면 다음 정도가 무난한 출발점입니다.
+
+```xml
+<property name="testWhileIdle" value="true"/>
+<property name="timeBetweenEvictionRunsMillis" value="120000"/>
+<property name="numTestsPerEvictionRun" value="10"/>
+<property name="minEvictableIdleTimeMillis" value="480000"/>
+<property name="validationQuery" value="SELECT 1"/>
+<property name="validationQueryTimeout" value="3"/>
+```
+
+의미:
+
+```text
+2분마다 idle 커넥션을 최대 10개 검사
+idle 8분 이상 된 커넥션은 제거 후보
+검증 쿼리는 최대 3초까지만 대기
+```
+
+단, L4 idle timeout이 5분이라면 위 값은 길 수 있습니다. 이 경우에는 예를 들어:
+
+```xml
+<property name="timeBetweenEvictionRunsMillis" value="60000"/>
+<property name="numTestsPerEvictionRun" value="10"/>
+<property name="minEvictableIdleTimeMillis" value="240000"/>
+```
+
+처럼 **Evictor 주기와 제거 기준을 더 짧게** 잡는 편이 안전합니다.
+
+## 최종 정리
+
+```text
+minEvictableIdleTimeMillis = idle 커넥션을 언제 제거 대상으로 볼지 정하는 값
+timeBetweenEvictionRunsMillis = Evictor 실행 주기
+numTestsPerEvictionRun = Evictor 1회당 검사 개수
+testWhileIdle = Evictor 검사 시 커넥션 유효성 검증 여부
+```
+
+현재 설정에서 `minEvictableIdleTimeMillis`를 설정할 때 핵심은 **DB/L4가 먼저 끊기 전에 DBCP가 먼저 정리하거나 검증하도록 만드는 것**입니다. 운영 서버에서는 반드시 다음 값을 확인한 뒤 결정하는 것이 안전합니다.
+
+```sql
+SHOW VARIABLES LIKE 'wait_timeout';
+SHOW VARIABLES LIKE 'interactive_timeout';
+```
+
+그리고 L4/방화벽/NAT 장비의 idle timeout도 함께 확인해야 합니다. DB 설정만 보고 DBCP 값을 정하면, 실제로는 중간 네트워크 장비가 먼저 연결을 끊는 상황을 놓칠 수 있습니다.
+
+
+# HikariCP와 Apache Commons DBCP2의 Health Checking 방식 차이
+
+### **Health Checking 설정**
+
+아파치의 커넥션 풀은 풀의 idle 한 커넥션에 대해 health checking을 할 때, 실제 경량의 쿼리를 DBMS로 요청하여 session timeout이 갱신되는 방식으로 구동된다. 만약 testWhileIdle 옵션을 활성화했다면 evictor 쓰레드의 구동 주기(timeBetweenEvictionRunsMillis)와 evictor가 한 번 구동될 때 검사할 커넥션 개수(numTestsPerEvictionRun) 설정을 유의해야 한다. 왜냐하면 **실제 DB서버로 요청을 보내는 작업이기 때문에 너무 자주 발생할 경우 불필요한 네트워크 I/O 작업에 대한 오버헤드가 증가**될 수 있기 때문이다.
+
+이뿐만 아니라 **Evictor 쓰레드는 동작 시에** **LinkedBlockingDeque의 API를 사용하여 커넥션을 조회하기 때문에 lock이 발생하는 지점이 자주 발생**한다. 따라서 너무 자주 실행하면 서비스 실행에 부담을 줄 수 있다. 
+
+#### **cf. HikariCP와 Apache Commons DBCP의 health checking 방식 차이**
+
+**1) HikariCP**
+
+- 커넥션 생성 시 커넥션이 유효한 maxLifeTime과 생성시간을 설정 (Session Timeout 보다 작게 설정 필요)  
+- getConnection 및 close시 현재 시간과 생성시간을 비교하여 maxLifeTime을 초과하는지 검사  
+- 커넥션의 maxLifeTime 값이 초과되면 해당 Connection을 폐기하고 새로 생성  
+- 실제 DB로 경량의 쿼리를 이용해 요청을 보낼 필요가 없음(트래픽 감소)
+
+- 단, maxLifetime이 지난 커넥션을 폐기하고 새로 생성해야 한다는 오버헤드 존재
+
+  
+**2) Apache Commons DBCP**
+
+- 실제 경량의 쿼리를 DB서버로 요청하여 'session timeout'을 갱신하는 방식
+
+- 네트워크 I/O 작업이 동반되기 때문에 성능 영향을 줄 수 있음
+
+- 성능에 문제가 되지 않을 만큼 설정을 한다면 커넥션 신규 생성을 방지하고 재사용을 최대한 활용할 수 있음.
+
+
+## 1. 결론
+
+Spring에서 DB Pool을 사용할 때 **HikariCP와 Apache Commons DBCP2는 Connection Health Check 철학이 다릅니다.**
+
+|구분|HikariCP|Apache Commons DBCP2|
+|---|---|---|
+|기본 철학|빠른 Borrow, 최소 검증|명시적 검증 옵션 중심|
+|Borrow 시 검사|기본적으로 JDBC4 `isValid()` 또는 설정 기반|`testOnBorrow=true`면 매번 검사|
+|Idle 검사|HouseKeeper가 관리|Evictor가 `testWhileIdle=true`일 때 검사|
+|검증 쿼리|가능하면 `connectionTestQuery` 생략 권장|보통 `validationQuery=SELECT 1` 사용|
+|Timeout|`validationTimeout`|`validationQueryTimeout`|
+|오래된 커넥션 처리|`maxLifetime`, `keepaliveTime` 중심|`minEvictableIdleTimeMillis`, `softMinEvictableIdleTimeMillis`, `maxConnLifetimeMillis` 중심|
+|성능 특성|검증 오버헤드 최소화|설정에 따라 검증 쿼리 부하 증가 가능|
+|운영 난이도|설정 단순|옵션 조합 이해 필요|
+
+핵심은 다음입니다.
+
+```text
+HikariCP: 커넥션을 자주 검사하기보다, 수명·유휴·keepalive 정책으로 죽은 커넥션을 사전에 줄이는 방식
+DBCP2: borrow/return/idle 시점에 validationQuery를 실행할지 세밀하게 제어하는 방식
+```
+
+## 2. HikariCP Health Check 방식
+
+HikariCP는 `connectionTestQuery`를 무조건 쓰는 방식이 아닙니다.  
+공식 설정 기준으로 JDBC4를 지원하는 드라이버라면 `connectionTestQuery`를 설정하지 않는 것을 권장하며, 이 경우 `Connection.isValid()`를 사용합니다. HikariCP 설정 문서에서도 JDBC4 드라이버를 사용하는 경우 `connectionTestQuery`를 설정하지 말라고 설명합니다. ([GitHub](https://github.com/brettwooldridge/hikaricp?utm_source=chatgpt.com "brettwooldridge/HikariCP: 光 HikariCP・A solid, high- ..."))
+
+## 2.1 HikariCP 주요 설정
+
+|설정|역할|
+|---|---|
+|`connectionTimeout`|Pool에서 Connection을 얻기까지 기다리는 최대 시간|
+|`validationTimeout`|Connection 유효성 검증 최대 시간|
+|`idleTimeout`|Minimum idle 초과 유휴 Connection 제거 기준|
+|`maxLifetime`|Connection 최대 생존 시간|
+|`keepaliveTime`|Idle Connection이 DB/L4에 의해 끊기지 않도록 주기적 확인|
+|`connectionTestQuery`|JDBC4 미지원 드라이버에서만 주로 사용|
+
+## 2.2 HikariCP 검증 흐름
+
+대표 흐름은 아래와 같습니다.
+
+```text
+애플리케이션이 Connection 요청
+→ Pool에서 Connection 후보 선택
+→ 필요 시 isValid() 또는 connectionTestQuery로 검증
+→ 정상 Connection 반환
+→ 비정상이면 폐기 후 새 Connection 생성 시도
+```
+
+HikariCP는 매번 `SELECT 1`을 실행하는 방식보다는 **드라이버의 `isValid()`와 수명 관리 정책**에 기대는 구조입니다.
+
+## 2.3 HikariCP 예시 설정
+
+```properties
+spring.datasource.hikari.maximum-pool-size=40
+spring.datasource.hikari.minimum-idle=10
+spring.datasource.hikari.connection-timeout=3000
+spring.datasource.hikari.validation-timeout=3000
+spring.datasource.hikari.max-lifetime=1800000
+spring.datasource.hikari.idle-timeout=600000
+spring.datasource.hikari.keepalive-time=120000
+```
+
+`connectionTestQuery`는 MariaDB/MySQL JDBC 드라이버가 JDBC4 `isValid()`를 정상 지원한다면 보통 생략합니다.
+
+```properties
+# 보통 생략 권장
+# spring.datasource.hikari.connection-test-query=SELECT 1
+```
+
+## 3. Apache Commons DBCP2 Health Check 방식
+
+DBCP2는 명시적으로 검사 시점을 설정합니다.  
+공식 DBCP 설정 문서에는 `validationQuery`, `validationQueryTimeout`, `testOnCreate`, `testOnBorrow`, `testOnReturn`, `testWhileIdle` 같은 옵션이 제공됩니다. ([Apache Commons](https://commons.apache.org/dbcp/configuration.html?utm_source=chatgpt.com "BasicDataSource Configuration – Apache Commons DBCP"))
+
+## 3.1 DBCP2 주요 설정
+
+|설정|역할|
+|---|---|
+|`validationQuery`|유효성 검사 SQL. 예: `SELECT 1`|
+|`validationQueryTimeout`|검증 쿼리 제한 시간|
+|`testOnBorrow`|Connection을 빌릴 때 검사|
+|`testOnReturn`|Connection을 반환할 때 검사|
+|`testWhileIdle`|Evictor가 Idle Connection 검사|
+|`timeBetweenEvictionRunsMillis`|Evictor 실행 주기|
+|`numTestsPerEvictionRun`|Evictor 1회 실행 시 검사할 Idle Connection 수|
+|`minEvictableIdleTimeMillis`|일정 시간 이상 유휴인 Connection 제거 기준|
+|`softMinEvictableIdleTimeMillis`|`minIdle` 유지 조건을 고려한 유휴 제거 기준|
+|`maxConnLifetimeMillis`|Connection 최대 생존 시간|
+
+## 3.2 DBCP2 검증 흐름
+
+`testOnBorrow=true`인 경우:
+
+```text
+애플리케이션이 Connection 요청
+→ Pool에서 Idle Connection 선택
+→ validationQuery 실행
+→ 성공하면 Connection 반환
+→ 실패하면 폐기 후 다른 Connection 시도
+```
+
+`testWhileIdle=true`인 경우:
+
+```text
+Evictor 주기 도래
+→ Idle Connection 일부 선택
+→ validationQuery 실행
+→ 실패 Connection 제거
+→ minIdle 부족 시 새 Connection 보충
+```
+
+즉, DBCP2는 **검증 쿼리 기반의 직접적인 Health Check 방식**에 가깝습니다.
+
+## 3.3 DBCP2 예시 설정
+
+```xml
+<property name="initialSize" value="10"/>
+<property name="maxTotal" value="40"/>
+<property name="maxIdle" value="10"/>
+<property name="minIdle" value="10"/>
+<property name="maxWaitMillis" value="3000"/>
+<property name="validationQuery" value="SELECT 1"/>
+<property name="validationQueryTimeout" value="3"/>
+<property name="testOnBorrow" value="false"/>
+<property name="testWhileIdle" value="true"/>
+<property name="timeBetweenEvictionRunsMillis" value="60000"/>
+<property name="numTestsPerEvictionRun" value="10"/>
+<property name="minEvictableIdleTimeMillis" value="300000"/>
+```
+
+이 설정은 매 요청마다 검사하지 않고, **Idle 상태에서 Evictor가 주기적으로 검사**하는 구조입니다.
+
+## 4. 가장 큰 차이: Borrow 시점 검증
+
+## 4.1 DBCP2 `testOnBorrow=true`
+
+```xml
+<property name="testOnBorrow" value="true"/>
+<property name="validationQuery" value="SELECT 1"/>
+```
+
+|장점|단점|
+|---|---|
+|죽은 Connection을 애플리케이션에 넘길 가능성 낮음|매 Borrow마다 검증 쿼리 실행|
+|안정성 높음|TPS가 높으면 DB에 `SELECT 1` 부하 증가|
+|장애 감지 빠름|요청 지연 가능|
+
+예를 들어 초당 500건의 DB 요청이 있고 `testOnBorrow=true`라면, 업무 SQL 외에 `SELECT 1`이 초당 수백 회 추가될 수 있습니다.
+
+## 4.2 HikariCP Borrow 검증
+
+HikariCP도 비정상 Connection을 반환하지 않기 위한 검증을 수행할 수 있지만, 기본 방향은 `SELECT 1` 반복 실행이 아니라 `isValid()`, `validationTimeout`, `maxLifetime`, `keepaliveTime` 조합입니다.
+
+|장점|단점|
+|---|---|
+|Borrow 오버헤드가 낮음|DB/L4 타임아웃과 설정이 안 맞으면 드문 실패 가능|
+|고성능 서비스에 적합|장애 원인 분석 시 내부 정책 이해 필요|
+|설정 단순|강한 검증을 원하면 별도 설정 필요|
+
+## 5. Idle Health Check 차이
+
+## 5.1 DBCP2 Evictor
+
+DBCP2는 `timeBetweenEvictionRunsMillis`가 양수이고 `testWhileIdle=true`일 때 Idle Connection을 주기적으로 검사합니다.
+
+```xml
+<property name="testWhileIdle" value="true"/>
+<property name="timeBetweenEvictionRunsMillis" value="60000"/>
+<property name="numTestsPerEvictionRun" value="10"/>
+```
+
+동작:
+
+```text
+60초마다 Evictor 실행
+→ Idle Connection 중 최대 10개 검사
+→ SELECT 1 실행
+→ 실패 Connection 제거
+```
+
+공식 문서에서도 `timeBetweenEvictionRunsMillis`는 idle object evictor thread 실행 간격이고, 양수가 아니면 evictor가 실행되지 않는다고 설명합니다. ([Apache Commons](https://commons.apache.org/dbcp/configuration.html?utm_source=chatgpt.com "BasicDataSource Configuration – Apache Commons DBCP"))
+
+## 5.2 HikariCP HouseKeeper
+
+HikariCP는 내부 HouseKeeper가 Pool 상태를 관리합니다.  
+주요 역할은 다음과 같습니다.
+
+```text
+maxLifetime 초과 Connection 제거
+idleTimeout 기준 유휴 Connection 정리
+minimumIdle 유지
+keepaliveTime 기준 Idle Connection 생존 확인
+```
+
+즉, DBCP2처럼 `numTestsPerEvictionRun`으로 몇 개를 검사할지 지정하는 구조가 아니라, **Pool 수명 관리 정책 중심**입니다.
+
+## 6. DB/L4 Idle Timeout 대응 차이
+
+운영에서 중요한 문제는 DB 또는 L4가 Idle Connection을 먼저 끊는 경우입니다.
+
+예:
+
+```text
+MariaDB wait_timeout = 300초
+L4 idle timeout = 240초
+Pool은 Connection이 살아있다고 생각
+실제 사용 시 Connection reset by peer 발생
+```
+
+## 6.1 DBCP2 대응
+
+DBCP2에서는 아래처럼 설정합니다.
+
+```xml
+<property name="testWhileIdle" value="true"/>
+<property name="timeBetweenEvictionRunsMillis" value="60000"/>
+<property name="validationQuery" value="SELECT 1"/>
+<property name="validationQueryTimeout" value="3"/>
+```
+
+의도:
+
+```text
+L4/DB timeout보다 짧은 주기로 SELECT 1 수행
+→ 끊긴 Connection 조기 제거
+→ minIdle 부족분 재생성
+```
+
+단점은 **Idle Connection 수만큼 주기적 검증 쿼리 부하**가 발생할 수 있다는 점입니다.
+
+## 6.2 HikariCP 대응
+
+HikariCP에서는 보통 아래 조합으로 대응합니다.
+
+```properties
+spring.datasource.hikari.max-lifetime=180000
+spring.datasource.hikari.keepalive-time=120000
+spring.datasource.hikari.validation-timeout=3000
+```
+
+의도:
+
+```text
+DB/L4가 끊기 전에 maxLifetime으로 Connection 교체
+또는 keepaliveTime으로 Idle Connection 생존 확인
+```
+
+HikariCP의 `keepaliveTime`은 커넥션이 idle 상태일 때만 동작하며, 이 값은 `maxLifetime`보다 작아야 합니다. HikariCP 설정 문서도 keepalive는 idle connection에 대해서만 발생한다고 설명합니다. ([GitHub](https://github.com/brettwooldridge/hikaricp?utm_source=chatgpt.com "brettwooldridge/HikariCP: 光 HikariCP・A solid, high- ..."))
+
+## 7. 성능 관점 비교
+
+|항목|HikariCP|DBCP2|
+|---|---|---|
+|요청 시 검증 부하|낮은 편|`testOnBorrow=true`면 높음|
+|주기적 검증 부하|`keepaliveTime` 설정 시 제한적|`testWhileIdle=true`면 Evictor 주기마다 발생|
+|설정 실수 위험|비교적 낮음|옵션 조합에 따라 부하/장애 가능|
+|죽은 커넥션 예방|수명/keepalive 중심|validationQuery 중심|
+|대량 트래픽 적합성|높음|설정 최적화 필요|
+|장애 감지 명확성|상대적으로 간접적|validationQuery 실패 로그로 명확|
+|운영 튜닝 난이도|낮음~중간|중간~높음|
+
+## 8. Spring 환경별 기본 선택
+
+|Spring 환경|기본 경향|
+|---|---|
+|Spring Boot 2.x/3.x|HikariCP 기본 채택|
+|Spring Framework XML 기반|DBCP2, Tomcat JDBC Pool, HikariCP 직접 설정 가능|
+|구형 시스템|DBCP2 사용 비율 높음|
+|신규 Spring Boot 시스템|HikariCP 권장|
+
+## 9. 실무 설정 방향
+
+## 9.1 HikariCP 권장 방향
+
+DB/L4 idle timeout이 있는 운영 환경에서는:
+
+```properties
+spring.datasource.hikari.maximum-pool-size=40
+spring.datasource.hikari.minimum-idle=10
+spring.datasource.hikari.connection-timeout=3000
+spring.datasource.hikari.validation-timeout=3000
+spring.datasource.hikari.max-lifetime=180000
+spring.datasource.hikari.keepalive-time=120000
+```
+
+주의:
+
+```text
+maxLifetime은 DB wait_timeout, L4 idle timeout보다 짧게 설정
+keepaliveTime은 maxLifetime보다 짧게 설정
+connectionTestQuery는 JDBC4 드라이버면 생략 우선
+```
+
+## 9.2 DBCP2 권장 방향
+
+운영 안정성 우선이면:
+
+```xml
+<property name="validationQuery" value="SELECT 1"/>
+<property name="validationQueryTimeout" value="3"/>
+<property name="testOnBorrow" value="false"/>
+<property name="testWhileIdle" value="true"/>
+<property name="timeBetweenEvictionRunsMillis" value="60000"/>
+<property name="numTestsPerEvictionRun" value="10"/>
+<property name="minEvictableIdleTimeMillis" value="300000"/>
+```
+
+장애가 잦고 죽은 커넥션이 Borrow되는 상황이면 임시로:
+
+```xml
+<property name="testOnBorrow" value="true"/>
+```
+
+단, TPS가 높은 시스템에서는 `testOnBorrow=true`를 상시 사용하면 DB 검증 쿼리 부하가 증가할 수 있습니다.
+
+## 10. “Connection reset by peer” 관점 차이
+
+|상황|HikariCP|DBCP2|
+|---|---|---|
+|Idle 중 DB/L4가 끊음|`maxLifetime`, `keepaliveTime`으로 예방|`testWhileIdle + validationQuery`로 감지|
+|Borrow 시 죽은 커넥션 발견|검증 후 제거 가능|`testOnBorrow=true`면 즉시 감지|
+|Evictor/HouseKeeper 로그|HouseKeeper 중심|commons-pool-evictor 로그 가능|
+|SELECT 1 중 reset 발생|상대적으로 적게 보이도록 설계 가능|Evictor 검증 중 자주 관찰 가능|
+
+DBCP2에서 사용자가 본 것처럼:
+
+```text
+[commons-pool-evictor] SELECT 1
+Connection reset by peer
+```
+
+이런 로그는 **Evictor가 Idle Connection을 검증하다가 이미 DB/L4에 의해 끊긴 Connection을 발견한 상황**으로 해석하는 것이 자연스럽습니다.
+
+## 11. 선택 기준
+
+|상황|권장|
+|---|---|
+|신규 Spring Boot 서비스|HikariCP|
+|고트래픽 API 서버|HikariCP|
+|설정 단순화 필요|HikariCP|
+|기존 XML 기반 Spring 5.3 시스템|DBCP2 유지 가능|
+|Evictor 기반 명시적 검증이 필요한 운영|DBCP2|
+|죽은 커넥션을 강하게 차단해야 함|DBCP2 `testOnBorrow=true` 또는 HikariCP validation 강화|
+|장기적으로 표준화/성능 개선|HikariCP 전환 검토|
+
+## 12. 최종 요약
+
+```text
+HikariCP는 Connection을 매번 SELECT 1로 확인하기보다 maxLifetime, idleTimeout, keepaliveTime, isValid() 중심으로 관리한다.
+Apache Commons DBCP2는 validationQuery, testOnBorrow, testWhileIdle, Evictor 설정으로 검사 시점을 직접 제어한다.
+```
+
+운영 관점에서는 아래처럼 판단하면 됩니다.
+
+|목적|더 적합|
+|---|---|
+|성능·단순성|HikariCP|
+|검증 시점 세밀 제어|DBCP2|
+|기존 Spring XML 유지|DBCP2|
+|신규 Spring Boot 전환|HikariCP|
+|DB/L4 idle timeout 대응|둘 다 가능하나 방식이 다름|
+
+현재 DBCP2를 사용 중이고 `Connection reset by peer`가 Evictor에서 보인다면, 우선은 아래 조합을 점검하는 것이 맞습니다.
+
+```text
+DB wait_timeout
+L4 idle timeout
+timeBetweenEvictionRunsMillis
+testWhileIdle
+validationQueryTimeout
+minEvictableIdleTimeMillis
+maxConnLifetimeMillis
+```
+
+신규 또는 개선 방향으로는 **HikariCP 전환 + `maxLifetime`, `keepaliveTime`, `validationTimeout`을 DB/L4 timeout보다 짧게 설정**하는 방식이 운영 부담이 더 낮습니다.
+
+
