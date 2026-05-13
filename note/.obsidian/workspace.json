@@ -27,15 +27,16 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "ThreadLocal.md",
+                "file": "CDN - Akamai 분석.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "ThreadLocal"
+              "title": "CDN - Akamai 분석"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -210,8 +211,11 @@
       "remotely-save:Remotely Save": false
     }
   },
-  "active": "91930d4fc1f1d8a6",
+  "active": "26d6be2d5a1ada36",
   "lastOpenFiles": [
+    "_template/jekyll-tech-output.md",
+    "ThreadLocal.md",
+    "Apple Login.md",
     "Jenkins Script.md",
     "Spring Batch xml 설정.md",
     "CDN - Akamai 분석.md",
@@ -224,8 +228,6 @@
     "Server Install.md",
     "Spring Proxy.md",
     "Sleep 추적.md",
-    "_template/jekyll-tech-output.md",
-    "ThreadLocal.md",
     "_posts/2026-05-13-note_ThreadLocal.md",
     "_posts",
     "_post/2026-05-13-note_ThreadLocal-1.md",
@@ -237,7 +239,6 @@
     "Template.md",
     "ResourcesVersioning 에서의 접근경로 변환.md",
     "HealthCheck File작성.md",
-    "Apple Login.md",
     "2026-05-08.md",
     "2026-05-07.md",
     "2026-04-28.md",

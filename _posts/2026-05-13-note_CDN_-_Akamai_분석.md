@@ -11,10 +11,8 @@ toc: false
 toc_sticky: true
 
 date: 2026-05-13
-last_modified_at: 2026-05-13 17:33:17
+last_modified_at: 2026-05-13 17:48:04
 ---
-
-# curl을 이용한 Akamai CDN 분석
 
 ## 1. 분석 목표
 

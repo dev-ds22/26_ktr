@@ -74,8 +74,6 @@ date: ${date}
 last_modified_at: ${lastModifiedAt}
 ---
 
-# ${title}
-
 ${originalContent}
 
 <details>

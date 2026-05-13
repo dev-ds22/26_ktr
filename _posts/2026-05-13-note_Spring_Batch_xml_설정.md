@@ -16,10 +16,6 @@ last_modified_at: 2026-05-13 17:32:25
 
 # Spring Batch XML 방식에서 `faultTolerant` 설정하는 방법
 
-정확도: 95%
-
-# Spring Batch XML 방식에서 `faultTolerant` 설정하는 방법
-
 Spring Batch XML 설정에서는 Java 설정의 `.faultTolerant()`처럼 **별도 메서드를 직접 쓰지 않습니다.** 대신 `<chunk>`에 `skip-limit`, `retry-limit` 같은 속성과 예외 클래스 설정을 넣어서 **fault-tolerant step**으로 구성합니다. 이 동작은 공식 XML 예제들과 XML 파서용 `StepParserStepFactoryBean` API 설명으로 확인할 수 있습니다. ([Home](https://docs.spring.io/spring-batch/reference/step/chunk-oriented-processing/configuring-skip.html "Configuring Skip Logic :: Spring Batch Reference"))
 
 ## 1. 가장 기본 형태

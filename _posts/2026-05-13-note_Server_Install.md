@@ -16,10 +16,6 @@ last_modified_at: 2026-05-13 17:29:08
 
 # Nexus + Maven + GitLab 16.5.0 + Jenkins 2.414.3 서버 구축 순서
 
-정확도: 95%
-
-# Nexus + Maven + GitLab 16.5.0 + Jenkins 2.414.3 서버 구축 순서
-
 ## 1. 전체 개략
 
 목표 구조는 다음과 같습니다.

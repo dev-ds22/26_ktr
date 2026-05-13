@@ -16,10 +16,6 @@ last_modified_at: 2026-05-13 17:32:53
 
 # GitLab 서버 설치 시 Nexus 연계 설정
 
-정확도: 95%
-
-# GitLab 서버 설치 시 Nexus 연계 설정
-
 ## 1. 핵심 결론
 
 GitLab과 Nexus 연계는 보통 **GitLab 서버 설정 파일에 Nexus를 직접 등록하는 방식이 아닙니다.** 실무에서는 **GitLab Runner가 실행하는 CI/CD Job에서 Maven/Gradle이 Nexus를 바라보도록 설정**합니다.
