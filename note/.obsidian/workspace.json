@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "CDN - Akamai 분석.md",
+                "file": "Gitlab 배포.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "CDN - Akamai 분석"
+              "title": "Gitlab 배포"
             }
           }
         ],
@@ -213,13 +213,13 @@
   },
   "active": "26d6be2d5a1ada36",
   "lastOpenFiles": [
+    "DBCP2 설정.md",
     "_template/jekyll-tech-output.md",
+    "CDN - Akamai 분석.md",
     "ThreadLocal.md",
     "Apple Login.md",
     "Jenkins Script.md",
     "Spring Batch xml 설정.md",
-    "CDN - Akamai 분석.md",
-    "DBCP2 설정.md",
     "Git 설치 및 Github 설정.md",
     "Gitlab - Nexus.md",
     "Gitlab 배포.md",

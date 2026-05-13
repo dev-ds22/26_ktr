@@ -1,4 +1,20 @@
-# Gitlab 배포
+---
+layout: single
+title: "Gitlab 배포"
+excerpt: "Gitlab 배포"
+
+categories:
+  - tech
+tags:
+  - [tech, memo]
+
+toc: false
+toc_sticky: true
+
+date: "2026-05-13"
+last_modified_at: "2026-05-13 17:59:16 +0900"
+---
+
 ## 결론
 
 가장 단순하고 운영하기 쉬운 방식은 **GitLab `dev` 브랜치 push → GitLab Webhook → Jenkins Pipeline Job 트리거 → `dev` 브랜치 checkout/build → SSH로 dev 서버 배포 → health check** 흐름입니다. Jenkins의 GitLab 플러그인은 GitLab webhook으로 Jenkins job을 트리거할 수 있고, webhook URL은 `https://JENKINS_URL/project/JOB_NAME` 형식을 사용해야 하며 `/job/.../build` 형태를 쓰면 플러그인을 우회하게 됩니다. ([Jenkins Plugins](https://plugins.jenkins.io/gitlab-plugin/ "GitLab | Jenkins plugin"))
@@ -268,3 +284,10 @@ git push origin dev
     
 12. 실제 `dev` 브랜치에 commit/push 하여 자동배포 검증  
     원하시면 다음 답변에서 **Jenkins UI 기준 실제 클릭 경로별로 화면 메뉴 순서까지** 아주 세세하게 풀어서 정리해드리겠습니다.
+
+<details>
+  <summary>참고</summary>  
+  <pre>
+
+  </pre>
+</details>

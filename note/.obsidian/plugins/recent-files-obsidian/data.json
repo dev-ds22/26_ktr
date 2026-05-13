@@ -1,12 +1,20 @@
 {
   "recentFiles": [
     {
-      "basename": "CDN - Akamai 분석",
-      "path": "CDN - Akamai 분석.md"
+      "basename": "Gitlab 배포",
+      "path": "Gitlab 배포.md"
+    },
+    {
+      "basename": "DBCP2 설정",
+      "path": "DBCP2 설정.md"
     },
     {
       "basename": "jekyll-tech-output",
       "path": "_template/jekyll-tech-output.md"
+    },
+    {
+      "basename": "CDN - Akamai 분석",
+      "path": "CDN - Akamai 분석.md"
     },
     {
       "basename": "ThreadLocal",
@@ -25,20 +33,12 @@
       "path": "Spring Batch xml 설정.md"
     },
     {
-      "basename": "DBCP2 설정",
-      "path": "DBCP2 설정.md"
-    },
-    {
       "basename": "Git 설치 및 Github 설정",
       "path": "Git 설치 및 Github 설정.md"
     },
     {
       "basename": "Gitlab - Nexus",
       "path": "Gitlab - Nexus.md"
-    },
-    {
-      "basename": "Gitlab 배포",
-      "path": "Gitlab 배포.md"
     },
     {
       "basename": "RequestContextHolder",

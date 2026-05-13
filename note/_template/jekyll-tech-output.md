@@ -20,18 +20,29 @@ function sanitizeFileName(value) {
     .replace(/^_|_$/g, "");
 }
 
+function normalizeText(value) {
+  return String(value || "").trim();
+}
+
 // 기존 YAML Front Matter 제거
 originalContent = originalContent.replace(/^---\s*\n[\s\S]*?\n---\s*\n*/, "").trim();
 
-// 문서 제목 추출: 첫 번째 H1 우선, 없으면 원본 파일명 사용
+// 원문 첫 번째 H1 제목 추출
 let title = sourceFile.basename;
+let firstHeading = "";
+let hideFirstHeading = false;
+
 const headingMatch = originalContent.match(/^#\s+(.+)\s*$/m);
 
 if (headingMatch) {
-  title = headingMatch[1].trim();
+  firstHeading = headingMatch[1].trim();
+  title = firstHeading;
 
-  // 본문에서 첫 번째 H1 제거
-  originalContent = originalContent.replace(/^#\s+(.+)\s*\n*/, "").trim();
+  // title과 원문 첫 번째 # 제목이 같으면 본문에서 H1 제거
+  if (normalizeText(title) === normalizeText(firstHeading)) {
+    originalContent = originalContent.replace(/^#\s+(.+)\s*\n*/, "").trim();
+    hideFirstHeading = true;
+  }
 }
 
 // 현재 Vault 실제 OS 경로 취득
@@ -52,29 +63,32 @@ if (!fs.existsSync(outputFolderPath)) {
 // 공백은 '_'로 치환
 const baseFileName = sanitizeFileName(sourceFile.basename);
 
-const date = tp.date.now("YYYY-MM-DD");
-const lastModifiedAt = tp.date.now("YYYY-MM-DD HH:mm:ss");
+const dateOnly = tp.date.now("YYYY-MM-DD");
+const dateTime = tp.date.now("YYYY-MM-DD HH:mm:ss") + " +0900";
 
-const outputFileName = `${date}-note_${baseFileName}.md`;
+const outputFileName = `${dateOnly}-note_${baseFileName}.md`;
 const outputPath = path.join(outputFolderPath, outputFileName);
+
+const headingBlock = hideFirstHeading ? "" : `# ${title}\n\n`;
 
 const newContent = `---
 layout: single
 title: "${escapeYaml(title)}"
+excerpt: "${escapeYaml(title)}"
 
 categories:
   - tech
 tags:
-  - tech
+  - [tech, memo]
 
 toc: false
 toc_sticky: true
 
-date: ${date}
-last_modified_at: ${lastModifiedAt}
+date: "${dateOnly}"
+last_modified_at: "${dateTime}"
 ---
 
-${originalContent}
+${headingBlock}${originalContent}
 
 <details>
   <summary>참고</summary>  
