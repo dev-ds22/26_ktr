@@ -1,6 +1,6 @@
 ---
 layout: single
-title: "결론"
+title: "System.setProperty"
 
 categories:
   - tech
@@ -14,7 +14,7 @@ date: 2026-05-13
 last_modified_at: 2026-05-13 17:30:46
 ---
 
-# 결론
+# System.setProperty
 
 Java에서 `System.setProperty("http.proxyHost", "proxy.company.local");`와 같은 방식으로 프록시를 설정하는 것은 **JVM 전역(Global)**에 영향을 미치기 때문에 여러 가지 잠재적인 문제를 유발할 수 있습니다. 
 
