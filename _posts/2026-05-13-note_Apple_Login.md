@@ -1,4 +1,21 @@
-# Apple Login  단계 별 추적 
+---
+layout: single
+title: "Apple Login  단계 별 추적"
+
+categories:
+  - tech
+tags:
+  - tech
+
+toc: false
+toc_sticky: true
+
+date: 2026-05-13
+last_modified_at: 2026-05-13 17:35:07
+---
+
+# Apple Login  단계 별 추적
+
 ## 예제
 ```java
 URL requestUrl = new URL("https://appleid.apple.com/auth/token");
@@ -823,3 +840,10 @@ curl -v -X POST "https://appleid.apple.com/auth/token" \
   -d "refresh_token="
   
 ```
+
+<details>
+  <summary>참고</summary>  
+  <pre>
+
+  </pre>
+</details>

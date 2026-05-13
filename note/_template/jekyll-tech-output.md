@@ -61,7 +61,6 @@ const outputPath = path.join(outputFolderPath, outputFileName);
 const newContent = `---
 layout: single
 title: "${escapeYaml(title)}"
-excerpt: "${escapeYaml(title)}"
 
 categories:
   - tech

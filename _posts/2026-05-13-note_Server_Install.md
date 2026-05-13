@@ -1,3 +1,21 @@
+---
+layout: single
+title: "Nexus + Maven + GitLab 16.5.0 + Jenkins 2.414.3 서버 구축 순서"
+
+categories:
+  - tech
+tags:
+  - tech
+
+toc: false
+toc_sticky: true
+
+date: 2026-05-13
+last_modified_at: 2026-05-13 17:29:08
+---
+
+# Nexus + Maven + GitLab 16.5.0 + Jenkins 2.414.3 서버 구축 순서
+
 정확도: 95%
 
 # Nexus + Maven + GitLab 16.5.0 + Jenkins 2.414.3 서버 구축 순서
@@ -473,3 +491,10 @@ BUILD SUCCESS
 ## 결론
 
 이 서버 구성의 핵심은 **Nexus를 Maven Repository 표준 진입점으로 먼저 안정화한 뒤, GitLab은 소스 기준점으로, Jenkins는 자동 빌드 실행 주체로 연결하는 것**입니다. 구축 순서는 `공통 인프라 → Nexus → GitLab → Jenkins → Maven 설정 → Webhook 연계 → 전체 검증`이 가장 안전합니다. 운영 안정성을 높이려면 Jenkins와 Nexus Credential 분리, GitLab Protected Branch, Nexus Release/Snapshot 정책, Jenkins Plugin 호환성, 백업/디스크/Cleanup 정책을 반드시 함께 설계해야 합니다.
+
+<details>
+  <summary>참고</summary>  
+  <pre>
+
+  </pre>
+</details>

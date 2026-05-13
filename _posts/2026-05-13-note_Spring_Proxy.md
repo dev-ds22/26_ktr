@@ -1,3 +1,20 @@
+---
+layout: single
+title: "결론"
+
+categories:
+  - tech
+tags:
+  - tech
+
+toc: false
+toc_sticky: true
+
+date: 2026-05-13
+last_modified_at: 2026-05-13 17:30:46
+---
+
+# 결론
 
 Java에서 `System.setProperty("http.proxyHost", "proxy.company.local");`와 같은 방식으로 프록시를 설정하는 것은 **JVM 전역(Global)**에 영향을 미치기 때문에 여러 가지 잠재적인 문제를 유발할 수 있습니다. 
 
@@ -59,15 +76,15 @@ HttpURLConnection conn = (HttpURLConnection) url.openConnection(proxy);
 
 ## 장점
 
-|항목|의미|
-|---|---|
-|관심사 분리|비즈니스 코드 안에 `System.setProperty(...)`를 흩뿌리지 않고 AOP로 분리 가능|
-|적용 범위 한정|특정 외부 연동 메서드에만 Pointcut 적용 가능|
-|중복 제거|여러 API 호출 메서드에 같은 프록시 처리 로직을 재사용 가능|
-|정책 집중화|어떤 외부 연동이 프록시를 써야 하는지 한 곳에서 관리 가능|
-|후처리 일원화|Around Advice에서 호출 전/후 로깅, 복원, 예외 처리까지 묶기 쉬움|
-|Spring 문서 기준으로 `Advisor`는 단일 Advice와 Pointcut을 결합해 특정 join point에 적용하는 구조라, 이런 “특정 외부 연동에만 공통 네트워크 정책 적용” 같은 요구에 잘 맞습니다. ([Home](https://docs.spring.io/spring-framework/reference/core/aop-api/advisor.html?utm_source=chatgpt.com "The Advisor API in Spring"))||
+| 항목       | 의미                                                       |
+| -------- | -------------------------------------------------------- |
+| 관심사 분리   | 비즈니스 코드 안에 `System.setProperty(...)`를 흩뿌리지 않고 AOP로 분리 가능 |
+| 적용 범위 한정 | 특정 외부 연동 메서드에만 Pointcut 적용 가능                            |
+| 중복 제거    | 여러 API 호출 메서드에 같은 프록시 처리 로직을 재사용 가능                      |
+| 정책 집중화   | 어떤 외부 연동이 프록시를 써야 하는지 한 곳에서 관리 가능                        |
+| 후처리 일원화  | Around Advice에서 호출 전/후 로깅, 복원, 예외 처리까지 묶기 쉬움             |
 
+- Spring 문서 기준으로 `Advisor`는 단일 Advice와 Pointcut을 결합해 특정 join point에 적용하는 구조라, 이런 “특정 외부 연동에만 공통 네트워크 정책 적용” 같은 요구에 잘 맞습니다. ([Home](https://docs.spring.io/spring-framework/reference/core/aop-api/advisor.html?utm_source=chatgpt.com "The Advisor API in Spring"))
 ## 하지만 치명적인 한계
 
 |항목|문제|
@@ -198,27 +215,28 @@ Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress("proxy.company.lo
 
 ## 2. 이 예제가 해결하는 문제
 
-|항목|기존 방식(`System.setProperty`)|개선 방식(전용 Proxy Client + Advisor)|
-|---|---|---|
-|영향 범위|JVM 전역|프록시 전용 HTTP 클라이언트에 한정|
-|동시성 안전성|낮음|높음|
-|적용 대상 제어|어려움|Advisor/Annotation으로 명확|
-|테스트 용이성|낮음|높음|
-|운영 추적성|낮음|높음|
-|이 구조는 Spring AOP의 `Advisor = Pointcut + Advice` 개념에 잘 맞습니다. 다만 Spring AOP는 **proxy-based AOP**이므로 self-invocation은 가로채지 못하며, 일반적으로 프록시를 통해 들어오는 public 메서드 기준으로 설계해야 합니다. ([Home](https://docs.spring.io/spring-framework/docs/5.0.11.RELEASE/spring-framework-reference/core.html "Core Technologies"))|||
+| 항목       | 기존 방식(`System.setProperty`) | 개선 방식(전용 Proxy Client + Advisor) |
+| -------- | --------------------------- | -------------------------------- |
+| 영향 범위    | JVM 전역                      | 프록시 전용 HTTP 클라이언트에 한정            |
+| 동시성 안전성  | 낮음                          | 높음                               |
+| 적용 대상 제어 | 어려움                         | Advisor/Annotation으로 명확          |
+| 테스트 용이성  | 낮음                          | 높음                               |
+| 운영 추적성   | 낮음                          | 높음                               |
 
+- 이 구조는 Spring AOP의 `Advisor = Pointcut + Advice` 개념에 잘 맞습니다. 다만 Spring AOP는 **proxy-based AOP**이므로 self-invocation은 가로채지 못하며, 일반적으로 프록시를 통해 들어오는 public 메서드 기준으로 설계해야 합니다. ([Home](https://docs.spring.io/spring-framework/docs/5.0.11.RELEASE/spring-framework-reference/core.html "Core Technologies"))
 ## 3. 적용 대상 예시
 
 아래 같은 경우에 적합합니다.
 
-|사용 사례|프록시 사용 여부|
-|---|---|
-|사내망에서 외부 결제사/택배사/관세 API 호출|사용 권장|
-|내부 MSA 간 호출|보통 직접 연결 권장|
-|배치에서 외부 파트너 데이터 수집|사용 권장|
-|사용자별로 매 요청마다 다른 프록시 사용|별도 라우팅 설계 필요, 단순 Advisor만으로는 부족|
-|대표적인 실무 예는 **내부 주문 서비스는 직접 호출**하고, **외부 파트너 연동만 사내 egress proxy를 통해 호출**하는 구조입니다. Java의 `Proxy`는 이런 연결 단위 프록시 설정을 표현하는 표준 타입입니다. ([Oracle Docs](https://docs.oracle.com/javase/8/docs/api/java/net/Proxy.html "Proxy (Java Platform SE 8 )"))||
+| 사용 사례                      | 프록시 사용 여부                       |
+| -------------------------- | ------------------------------- |
+| 사내망에서 외부 결제사/택배사/관세 API 호출 | 사용 권장                           |
+| 내부 MSA 간 호출                | 보통 직접 연결 권장                     |
+| 배치에서 외부 파트너 데이터 수집         | 사용 권장                           |
+| 사용자별로 매 요청마다 다른 프록시 사용     | 별도 라우팅 설계 필요, 단순 Advisor만으로는 부족 |
 
+- 대표적인 실무 예는 **내부 주문 서비스는 직접 호출**하고, **외부 파트너 연동만 사내 egress proxy를 통해 호출**하는 구조입니다. Java의 `Proxy`는 이런 연결 단위 프록시 설정을 표현하는 표준 타입입니다. ([Oracle Docs](https://docs.oracle.com/javase/8/docs/api/java/net/Proxy.html "Proxy (Java Platform SE 8 )"))
+- 
 ## 4. 전체 구조
 
 ```text
@@ -1026,3 +1044,10 @@ public class PartnerSyncService {
 
 **Spring Framework 5.3 실무에서는 `Advisor`로 대상 메서드만 선택하고, 실제 프록시 적용은 Apache HttpClient가 설정된 전용 `RestTemplate`로 분리하는 방식이 가장 안전하고 운영 친화적입니다.**  
 원하시면 다음 단계로 **proxy 인증 포함 로그/timeout/retry/pool 분리까지 반영한 운영형 버전**으로 확장해드리겠습니다.
+
+<details>
+  <summary>참고</summary>  
+  <pre>
+
+  </pre>
+</details>
