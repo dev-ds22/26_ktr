@@ -192,11 +192,21 @@
       "command-palette:명령어 팔레트 열기": false,
       "bases:새 베이스 생성하기": false,
       "obsidian-excalidraw-plugin:New drawing": false,
-      "table-editor-obsidian:Advanced Tables Toolbar": false
+      "table-editor-obsidian:Advanced Tables Toolbar": false,
+      "remotely-save:Remotely Save": false
     }
   },
   "active": "63e1e688d875b3b7",
   "lastOpenFiles": [
+    "2025-12-15-dev_kafka_set_zookeeper.md",
+    "2025-11-30-dev_ready_issue_code_quality.md",
+    "2025-11-30-dev_ready_issue_architecture.md",
+    "2025-11-28-dev_ready_issue_elastic.md",
+    "2025-01-02-threadlocal.markdown",
+    "2022-11-30-dev_ready_issue_code_quality.md",
+    "2022-11-30-dev_ready_issue_architecture.md",
+    "2022-11-28-dev_ready_issue_elastic.md",
+    "2022-12-15-dev_kafka_set_zookeeper.md",
     "2026-04-17.md",
     "HealthCheck File작성.md",
     "Gitlab 배포.md",
@@ -215,16 +225,8 @@
     "[Spring] - CGLIB방식.md",
     "Sleep 추적.md",
     "2026-04-28.md",
-    "DBCP2 설정.md",
-    "2026-05-07.md",
-    "Apple Login.md",
-    "2026-05-08.md",
-    "Proxy Advisor.md",
-    "RequestContextHolder.md",
-    "Git 설치 및 Github 설정.md",
     "2020-01-02-welcome-to-jekyll.markdown",
     "2020-01-02-post1.markdown",
-    "ThreadLocal.md",
     "2020-01-02-threadlocal.markdown"
   ]
 }

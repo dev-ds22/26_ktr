@@ -1,8 +1,18 @@
 ---
-layout: post
-title: ThreadLocal, Proxy Advisor
-date: 2026-05-12 19:20:23 +0900
-category: sample
+layout: single
+title: "pring Framework 5.3에서 `ThreadLocal` + `ProceedingJoinPoint.proceed()` 기반 Proxy Advisor 구현"
+excerpt: "ThredLocal"
+
+categories:
+  - tech
+tags:
+  - [tech, spring]
+
+toc: false
+toc_sticky: true
+
+date: 2022-11-28
+last_modified_at: 2022-11-28
 ---
 
 # Spring Framework 5.3에서 `ThreadLocal` + `ProceedingJoinPoint.proceed()` 기반 Proxy Advisor 구현
