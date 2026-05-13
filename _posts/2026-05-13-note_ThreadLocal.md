@@ -12,7 +12,7 @@ toc: false
 toc_sticky: true
 
 date: 2026-05-13
-last_modified_at: 2026-05-13 16:56:15
+last_modified_at: 2026-05-13
 ---
 
 # Spring Framework 5.3에서 `ThreadLocal` + `ProceedingJoinPoint.proceed()` 기반 Proxy Advisor 구현
