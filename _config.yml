@@ -22,7 +22,7 @@ title_separator          : "&#124;"
 subtitle                 : # site tagline that appears below site title in masthead
 name                     : "26_KRT Tech"
 description              : "26_KRT Tech Note. Version 0.1"
-url                      : "https://dev-ds22.github.io/"
+url                      : "https://dev-ds22.github.io/26_ktr"
 baseurl                  : # the subpath of your site, e.g. "/blog"
 repository               : # GitHub username/repo-name e.g. "mmistakes/minimal-mistakes"
 teaser                   : # path of fallback teaser image, e.g. "/assets/images/500x300.png"
