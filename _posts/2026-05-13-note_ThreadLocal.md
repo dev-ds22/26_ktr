@@ -6,7 +6,7 @@ excerpt: "Spring Framework 5.3에서 `ThreadLocal` + `ProceedingJoinPoint.procee
 categories:
   - tech
 tags:
-  - tech
+  - [tech]
 
 toc: false
 toc_sticky: true
