@@ -1,21 +1,5 @@
----
-layout: single
-title: "Jekyll-template Sample"
-excerpt: "Jekyll-template Sample"
+# Jekyll-template Sample
 
-categories:
-  - tech
-tags:
-  - [tech, memo]
-
-toc: false
-toc_sticky: true
-
-date: "2026-05-14"
-last_modified_at: "2026-05-14 14:21:59"
----
-
-## jekyll 용 post 생성 Script
 ```javascript
 <%*
 const sourceFile = tp.config.target_file;
@@ -123,10 +107,3 @@ fs.writeFileSync(outputPath, newContent, "utf8");
 new Notice(`Jekyll 변환 파일 생성/덮어쓰기 완료: ${outputPath}`);
 -%>
 ```
-
-<details>
-  <summary>참고</summary>  
-  <pre>
-
-  </pre>
-</details>
