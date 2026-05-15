@@ -52,6 +52,18 @@ function sanitizeTitleFromFileName(value) {
   return title;
 }
 
+function sanitizeAssetFileName(fileName) {
+  const ext = path.extname(fileName);
+  const base = path.basename(fileName, ext);
+
+  const safeBase = sanitizeFileName(base);
+  const safeExt = String(ext || "")
+    .toLowerCase()
+    .replace(/[\\/:*?"<>|\x00-\x1F]/g, "_");
+
+  return `${safeBase}${safeExt}`;
+}
+
 function removeFencedCodeBlocks(content) {
   return String(content || "").replace(/```[\s\S]*?```/g, "");
 }
@@ -198,6 +210,96 @@ function toYamlList(key, values) {
   return `${key}:\n${values.map((v) => `  - "${escapeYaml(v)}"`).join("\n")}`;
 }
 
+function getSourceFileDirectoryPath() {
+  const sourceRelativePath = sourceFile.path;
+  const sourceRelativeDir = path.dirname(sourceRelativePath);
+  const vaultBasePath = app.vault.adapter.getBasePath();
+
+  if (!sourceRelativeDir || sourceRelativeDir === ".") {
+    return vaultBasePath;
+  }
+
+  return path.join(vaultBasePath, sourceRelativeDir);
+}
+
+function findObsidianImageEmbeds(content) {
+  const embeds = [];
+  const regex = /!\[\[([^\]]+\.(?:png|jpg|jpeg|gif|webp|svg))(?:\|[^\]]*)?\]\]/gi;
+  let match;
+
+  while ((match = regex.exec(content)) !== null) {
+    const fullMatch = match[0];
+    const rawTarget = match[1].trim();
+    const imageFileName = path.basename(rawTarget);
+
+    embeds.push({
+      fullMatch,
+      rawTarget,
+      imageFileName
+    });
+  }
+
+  return embeds;
+}
+
+function copyImageToPostImages(sourceImagePath, targetImagesFolderPath, targetFileName) {
+  if (!fs.existsSync(sourceImagePath)) {
+    return false;
+  }
+
+  if (!fs.existsSync(targetImagesFolderPath)) {
+    fs.mkdirSync(targetImagesFolderPath, { recursive: true });
+  }
+
+  const targetPath = path.join(targetImagesFolderPath, targetFileName);
+  fs.copyFileSync(sourceImagePath, targetPath);
+
+  return true;
+}
+
+function convertObsidianImagesToJekyllMarkdown(content, sourceImageDirPath, targetImagesFolderPath) {
+  const embeds = findObsidianImageEmbeds(content);
+  const copied = [];
+  const missing = [];
+
+  let convertedContent = content;
+
+  embeds.forEach((embed) => {
+    const originalImageFileName = embed.imageFileName;
+    const safeImageFileName = sanitizeAssetFileName(originalImageFileName);
+
+    const sourceImagePath = path.join(sourceImageDirPath, originalImageFileName);
+    const copiedOk = copyImageToPostImages(
+      sourceImagePath,
+      targetImagesFolderPath,
+      safeImageFileName
+    );
+
+    if (copiedOk) {
+      copied.push({
+        from: sourceImagePath,
+        to: path.join(targetImagesFolderPath, safeImageFileName)
+      });
+
+      const altText = path.basename(safeImageFileName, path.extname(safeImageFileName));
+
+      // 요청 기준: _posts/images 하위에 복사
+      // output md에서는 images/파일명 으로 참조
+      const markdownImage = `![${altText}](images/${safeImageFileName})`;
+
+      convertedContent = convertedContent.split(embed.fullMatch).join(markdownImage);
+    } else {
+      missing.push(sourceImagePath);
+    }
+  });
+
+  return {
+    convertedContent,
+    copied,
+    missing
+  };
+}
+
 // 원본 YAML Front Matter 추출
 const frontMatterInfo = extractFrontMatter(originalContent);
 const sourceFrontMatterText = frontMatterInfo.frontMatterText;
@@ -252,6 +354,25 @@ if (!fs.existsSync(outputFolderPath)) {
   fs.mkdirSync(outputFolderPath, { recursive: true });
 }
 
+// _posts/images 폴더
+const outputImagesFolderPath = path.join(outputFolderPath, "images");
+
+if (!fs.existsSync(outputImagesFolderPath)) {
+  fs.mkdirSync(outputImagesFolderPath, { recursive: true });
+}
+
+// Obsidian 이미지 파일은 원본 MD 파일과 같은 디렉토리에서 찾음
+const sourceImageDirPath = getSourceFileDirectoryPath();
+
+// Obsidian 이미지 문법 변환 + 이미지 파일 복사
+const imageConvertResult = convertObsidianImagesToJekyllMarkdown(
+  originalContent,
+  sourceImageDirPath,
+  outputImagesFolderPath
+);
+
+originalContent = imageConvertResult.convertedContent;
+
 const dateOnly = tp.date.now("YYYY-MM-DD");
 const dateTime = tp.date.now("YYYY-MM-DD HH:mm:ss") + " +0900";
 
@@ -283,5 +404,16 @@ ${headingBlock}${originalContent}
 // 동일 파일명이 있으면 덮어쓰기
 fs.writeFileSync(outputPath, newContent, "utf8");
 
-new Notice(`Jekyll 변환 파일 생성/덮어쓰기 완료: ${outputPath}`);
+let noticeMessage = `Jekyll 변환 파일 생성/덮어쓰기 완료: ${outputPath}`;
+
+if (imageConvertResult.copied.length > 0) {
+  noticeMessage += ` / 이미지 ${imageConvertResult.copied.length}개 복사`;
+}
+
+if (imageConvertResult.missing.length > 0) {
+  noticeMessage += ` / 이미지 ${imageConvertResult.missing.length}개 누락`;
+  console.warn("[Jekyll 변환] 복사하지 못한 이미지:", imageConvertResult.missing);
+}
+
+new Notice(noticeMessage);
 -%>

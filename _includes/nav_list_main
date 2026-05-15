@@ -13,12 +13,14 @@
       </li>
 -->
         <li>
-            <span class="nav__sub-title">Tech Stack</span>
+            <span class="nav__sub-title">Tech</span>
             <ul>
                 {% for category in site.categories %} {% if category[0] == "tech" %}
                 <li><a href="/categories/tech" class="">TECH ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "note" %}
                 <li><a href="/categories/note" class="">NOTE ({{category[1].size}})</a></li>
+                {% endif %} {% if category[0] == "cicd" %}
+                <li><a href="/categories/cicd" class="">CI/CD ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "issue" %}
                 <li><a href="/categories/issue" class="">ISSUE ({{category[1].size}})</a></li>
                 {% endif %} {% endfor %}
@@ -26,13 +28,16 @@
 
             <span class="nav__sub-title">Framework</span>
             <ul>
-                {% for category in site.categories %} {% if category[0] == "framework" %}
-                <li><a href="/categories/framework" class="">FRAMEWORK ({{category[1].size}})</a></li>
+                {% for category in site.categories %} 
+                {% if category[0] == "spring" %}
+                <li><a href="/categories/spring" class="">Spring ({{category[1].size}})</a></li>
+                {% endif %} {% if category[0] == "batch" %}
+                <li><a href="/categories/batch" class="">Batch ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "elk" %}
                 <li><a href="/categories/elk" class="">ELK Stack ({{category[1].size}})</a></li>
                 {% endif %} {% endfor %}
             </ul>
-            <span class="nav__sub-title">Infra</span>
+            <span class="nav__sub-title">Cloud</span>
             <ul>
                 {% for category in site.categories %} {% if category[0] == "aws" %}
                 <li><a href="/categories/aws" class="">AWS ({{category[1].size}})</a></li>
@@ -42,11 +47,14 @@
             </ul>
             <span class="nav__sub-title">Common</span>
             <ul>
-                {% for category in site.categories %} {% if category[0] == "common" %}
+                {% for category in site.categories %} 
+                {% if category[0] == "common" %}
                 <li><a href="/categories/common" class="">Common ({{category[1].size}})</a></li>
-                {% endif %} {% if category[0] == "Front" %}
+                {% endif %} {% if category[0] == "memo" %}
+                <li><a href="/categories/memo" class="">Memo ({{category[1].size}})</a></li>
+                {% endif %} {% if category[0] == "front" %}
                 <li><a href="/categories/front" class="">Front ({{category[1].size}})</a></li>
-                {% endif %} {% if category[0] == "Back" %}
+                {% endif %} {% if category[0] == "back" %}
                 <li><a href="/categories/back" class="">Back ({{category[1].size}})</a></li>
                 {% endif %} {% endfor %}
             </ul>
