@@ -1,16 +1,16 @@
 {
   "recentFiles": [
     {
-      "basename": "jekyll-tech-output",
-      "path": "_template/jekyll-tech-output.md"
-    },
-    {
       "basename": "CDN TTBF 원인 분석",
       "path": "CDN TTBF 원인 분석.md"
     },
     {
       "basename": "[Spring] - CGLIB방식",
       "path": "[Spring] - CGLIB방식.md"
+    },
+    {
+      "basename": "jekyll-tech-output",
+      "path": "_template/jekyll-tech-output.md"
     },
     {
       "basename": "Apple Login",

@@ -1,7 +1,6 @@
 ---
 layout: single
 title: "CDN TTBF 원인 분석"
-excerpt: "CDN TTBF 원인 분석"
 
 categories:
   - tech
