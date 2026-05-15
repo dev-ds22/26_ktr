@@ -2,12 +2,11 @@
 layout: single
 title: "Gitlab 배포"
 excerpt: "Gitlab 배포"
-
 categories:
-  - tech
+  - "cicd"
 tags:
-  - [tech, memo]
-
+  - "gitlab"
+  - "jenkins"
 toc: false
 toc_sticky: true
 

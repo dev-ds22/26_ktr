@@ -1,12 +1,10 @@
 ---
 layout: single
 title: "Git 설치 및 Github 설정"
-
 categories:
-  - tech
+  - "common"
 tags:
-  - tech
-
+  - "common"
 toc: false
 toc_sticky: true
 

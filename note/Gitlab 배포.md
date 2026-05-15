@@ -1,3 +1,11 @@
+---
+categories:
+  - cicd
+tags:
+  - cicd
+  - gitlab
+---
+
 # Gitlab 배포
 ## 결론
 

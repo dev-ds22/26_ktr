@@ -1,12 +1,11 @@
 ---
 layout: single
 title: "GitLab 서버 설치 시 Nexus 연계 설정"
-
 categories:
-  - tech
+  - "cicd"
 tags:
-  - tech
-
+  - "gitlab"
+  - "jenkins"
 toc: false
 toc_sticky: true
 

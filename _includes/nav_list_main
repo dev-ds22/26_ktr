@@ -21,6 +21,8 @@
                 <li><a href="/categories/note" class="">NOTE ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "cicd" %}
                 <li><a href="/categories/cicd" class="">CI/CD ({{category[1].size}})</a></li>
+                {% endif %} {% if category[0] == "git" %}
+                <li><a href="/categories/git" class="">git ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "issue" %}
                 <li><a href="/categories/issue" class="">ISSUE ({{category[1].size}})</a></li>
                 {% endif %} {% endfor %}
