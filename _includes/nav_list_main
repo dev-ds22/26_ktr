@@ -16,15 +16,15 @@
             <span class="nav__sub-title">Tech</span>
             <ul>
                 {% for category in site.categories %} {% if category[0] == "tech" %}
-                <li><a href="/categories/tech" class="">TECH ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/tech" class="">TECH ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "note" %}
-                <li><a href="/categories/note" class="">NOTE ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/note" class="">NOTE ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "cicd" %}
-                <li><a href="/categories/cicd" class="">CI/CD ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/cicd" class="">CI/CD ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "git" %}
-                <li><a href="/categories/git" class="">git ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/git" class="">git ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "issue" %}
-                <li><a href="/categories/issue" class="">ISSUE ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/issue" class="">ISSUE ({{category[1].size}})</a></li>
                 {% endif %} {% endfor %}
             </ul>
 
@@ -32,40 +32,40 @@
             <ul>
                 {% for category in site.categories %} 
                 {% if category[0] == "spring" %}
-                <li><a href="/categories/spring" class="">Spring ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/spring" class="">Spring ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "batch" %}
-                <li><a href="/categories/batch" class="">Batch ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/batch" class="">Batch ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "elk" %}
-                <li><a href="/categories/elk" class="">ELK Stack ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/elk" class="">ELK Stack ({{category[1].size}})</a></li>
                 {% endif %} {% endfor %}
             </ul>
             <span class="nav__sub-title">Cloud</span>
             <ul>
                 {% for category in site.categories %} {% if category[0] == "aws" %}
-                <li><a href="/categories/aws" class="">AWS ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/aws" class="">AWS ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "infra" %}
-                <li><a href="/categories/infra" class="">Infra ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/infra" class="">Infra ({{category[1].size}})</a></li>
                 {% endif %} {% endfor %}
             </ul>
             <span class="nav__sub-title">Common</span>
             <ul>
                 {% for category in site.categories %} 
                 {% if category[0] == "common" %}
-                <li><a href="/categories/common" class="">Common ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/common" class="">Common ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "memo" %}
-                <li><a href="/categories/memo" class="">Memo ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/memo" class="">Memo ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "front" %}
-                <li><a href="/categories/front" class="">Front ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/front" class="">Front ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "back" %}
-                <li><a href="/categories/back" class="">Back ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/back" class="">Back ({{category[1].size}})</a></li>
                 {% endif %} {% endfor %}
             </ul>
             <span class="nav__sub-title">Dev. Env</span>
             <ul>
                 {% for category in site.categories %} {% if category[0] == "tools" %}
-                <li><a href="/categories/tools" class="">Tools ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/tools" class="">Tools ({{category[1].size}})</a></li>
                 {% endif %} {% if category[0] == "etc" %}
-                <li><a href="/categories/etc" class="">ETC. ({{category[1].size}})</a></li>
+                <li><a href="/26_ktr/categories/etc" class="">ETC. ({{category[1].size}})</a></li>
                 {% endif %} {% endfor %}
             </ul>
         </li>
