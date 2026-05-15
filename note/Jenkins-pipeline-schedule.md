@@ -3,7 +3,8 @@ categories:
   - cicd
 tags:
   - cicd
-  - 
+  - jenkins
+  - batch
 ---
 ## Scheduling
 

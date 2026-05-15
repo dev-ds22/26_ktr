@@ -11,11 +11,11 @@ tags:
 toc: false
 toc_sticky: true
 date: "2026-05-15"
-last_modified_at: "2026-05-15 14:23:47 +0900"
+last_modified_at: "2026-05-15 15:14:06 +0900"
 ---
 ## Scheduling
 
-![Pasted_image_20260515140939](./images/Pasted_image_20260515140939.png)
+![Pasted_image_20260515140939](./../../images/2026-05-15-note_Jenkins-pipeline-schedul/Pasted_image_20260515140939.png)
 
 ## 테스트용 원본
 ```bash
