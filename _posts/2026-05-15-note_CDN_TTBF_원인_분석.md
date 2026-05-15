@@ -15,8 +15,6 @@ date: "2026-05-15"
 last_modified_at: "2026-05-15 11:11:47 +0900"
 ---
 
-# CDN TTBF 원인 분석
-
 ## 특정 QueryString 에서만 파일 로딩이 느려지는 현상
 
 ![[Pasted image 20260515110851.png]]

@@ -69,7 +69,8 @@ const dateTime = tp.date.now("YYYY-MM-DD HH:mm:ss") + " +0900";
 const outputFileName = `${dateOnly}-note_${baseFileName}.md`;
 const outputPath = path.join(outputFolderPath, outputFileName);
 
-const headingBlock = hideFirstHeading ? "" : `# ${title}\n\n`;
+// const headingBlock = hideFirstHeading ? "" : `# ${title}\n\n`;
+const headingBlock = "";
 
 const newContent = `---
 layout: single
