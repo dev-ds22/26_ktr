@@ -106,6 +106,7 @@ author:
   name             : "Wontae. Kim"
   avatar           : images/profile/wontae_kim_logo.png # path of avatar image, e.g. "/assets/images/bio-photo.jpg"
   bio              : "26_KRT Tech Note."
+  home             : "https://dev-ds22.github.io/26_ktr"
   # location         : "Seoul"
   # email            : "wontae_k@m2mglobal.co.kr"
   links:
