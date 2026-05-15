@@ -1,7 +1,7 @@
 ---
 layout: single
-title: "1. 실제 Git 추적 여부 확인"
-excerpt: "1. 실제 Git 추적 여부 확인"
+title: "Git_gitignore_오류_및_Pulling_is_not_possible"
+excerpt: "Git_gitignore_오류_및_Pulling_is_not_possible"
 
 categories:
   - tech
