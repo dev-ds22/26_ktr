@@ -57,6 +57,7 @@ Apache DBCP2 공식 설정 기준으로 `maxTotal`은 동시에 할당 가능한
 |`minIdle=maxIdle=maxTotal`|`10`|중간|항상 10개 DB 세션을 유지하므로 DB 자원 고정 점유|
 |`poolPreparedStatements`|`true`|중간|SQL 종류가 많으면 커서/Statement 캐시 자원 증가|
 |`maxOpenPreparedStatements`|`30`|낮음~중간|커넥션당 30개, 전체 최대 약 300개 캐시 가능|
+
 ## 3. 가장 심각한 문제: 죽은 커넥션 검증 부재
 
 현재는 `validationQuery=SELECT 1`이 설정되어 있지만, 실제 검증 트리거가 모두 꺼져 있습니다.
