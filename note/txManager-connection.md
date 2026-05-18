@@ -1,6 +1,34 @@
-정확도: 96%
+## txManager - txManagerMail 분리
+```xml
+<bean id="txManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+  <property name="dataSource" ref="dataSource"/> </bean> 
+  <!-- 
+       <tx:advice id="txAdvice" transaction-manager="txManager"> 
+         <tx:attributes> 
+           <tx:method name="*" propagation="REQUIRED" rollback-for="Exception"/>
+         </tx:attributes> 
+       </tx:advice> 
+    --> 
+<tx:advice id="txAdvice" transaction-manager="txManager">
+  <tx:attributes> 
+    <tx:method name="save*" propagation="REQUIRED" rollback-for="Exception" />
+    <tx:method name="insert*" propagation="REQUIRED" rollback-for="Exception" />
+    <tx:method name="update*" propagation="REQUIRED" rollback-for="Exception" />
+    <tx:method name="delete*" propagation="REQUIRED" rollback-for="Exception" />
+    <tx:method name="*" propagation="SUPPORTS" read-only="true" />
+  </tx:attributes>
+</tx:advice>
 
-## 결론
+<aop:config>
+  <aop:pointcut id="requiredTx" expression="execution(* bk.app..service.*Service.*(..))"/>
+  <aop:advisor advice-ref="txAdvice" pointcut-ref="requiredTx" />
+</aop:config>
+
+<bean id="txManagerMail" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+  <property name="dataSource" ref="dataSourceMail"/>
+</bean>
+```
+
 
 현재 XML 설정 기준으로는 **`txManagerMail`에는 선언적 트랜잭션이 기본적으로 적용되지 않습니다.**  
 이유는 `txManagerMail` 빈은 선언되어 있지만, 실제 AOP 트랜잭션 Advice에 연결되어 있지 않기 때문입니다.  

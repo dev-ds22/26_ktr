@@ -32,17 +32,17 @@ Apache DBCP2 공식 설정 기준으로 `maxTotal`은 동시에 할당 가능한
 
 ## 2. 설정별 위험도
 
-|설정|현재값|위험도|판단|
-|---|--:|--:|---|
-|`maxTotal`|`10`|높음|외부솔루션 호출이 순간적으로 몰리면 10개 초과 요청은 대기 후 실패 가능|
-|`maxWaitMillis`|`3000`|중간~높음|풀 고갈 시 3초 만에 `Cannot get a connection` 계열 오류 가능|
-|`testOnBorrow`|`false`|높음|DB/L4/방화벽이 끊은 커넥션을 검증 없이 전달 가능|
-|`testWhileIdle`|`false`|높음|Idle 상태 커넥션 사전 검증 없음|
-|`timeBetweenEvictionRunsMillis`|`480000`|낮음~중간|8분마다 Evictor는 돌 수 있으나, 현재 검증/제거 설정상 효과 제한적|
-|`minEvictableIdleTimeMillis`|`-1`|중간|Idle 커넥션을 시간 기준으로 제거하지 않음|
-|`minIdle=maxIdle=maxTotal`|`10`|중간|항상 10개 DB 세션을 유지하므로 DB 자원 고정 점유|
-|`poolPreparedStatements`|`true`|중간|SQL 종류가 많으면 커서/Statement 캐시 자원 증가|
-|`maxOpenPreparedStatements`|`30`|낮음~중간|커넥션당 30개, 전체 최대 약 300개 캐시 가능|
+| 설정                              |      현재값 |   위험도 | 판단                                              |
+| ------------------------------- | -------: | ----: | ----------------------------------------------- |
+| `maxTotal`                      |     `10` |    높음 | 외부솔루션 호출이 순간적으로 몰리면 10개 초과 요청은 대기 후 실패 가능       |
+| `maxWaitMillis`                 |   `3000` | 중간~높음 | 풀 고갈 시 3초 만에 `Cannot get a connection` 계열 오류 가능 |
+| `testOnBorrow`                  |  `false` |    높음 | DB/L4/방화벽이 끊은 커넥션을 검증 없이 전달 가능                  |
+| `testWhileIdle`                 |  `false` |    높음 | Idle 상태 커넥션 사전 검증 없음                            |
+| `timeBetweenEvictionRunsMillis` | `480000` | 낮음~중간 | 8분마다 Evictor는 돌 수 있으나, 현재 검증/제거 설정상 효과 제한적      |
+| `minEvictableIdleTimeMillis`    |     `-1` |    중간 | Idle 커넥션을 시간 기준으로 제거하지 않음                       |
+| `minIdle=maxIdle=maxTotal`      |     `10` |    중간 | 항상 10개 DB 세션을 유지하므로 DB 자원 고정 점유                 |
+| `poolPreparedStatements`        |   `true` |    중간 | SQL 종류가 많으면 커서/Statement 캐시 자원 증가               |
+| `maxOpenPreparedStatements`     |     `30` | 낮음~중간 | 커넥션당 30개, 전체 최대 약 300개 캐시 가능                    |
 ## 3. 가장 심각한 문제: 죽은 커넥션 검증 부재
 
 현재는 `validationQuery=SELECT 1`이 설정되어 있지만, 실제 검증 트리거가 모두 꺼져 있습니다.
