@@ -1,3 +1,17 @@
+---
+layout: single
+title: "txManager-connection"
+excerpt: "txManager-connection"
+categories:
+  - "tech"
+tags:
+  - "tech"
+  - "memo"
+toc: false
+toc_sticky: true
+date: "2026-05-19"
+last_modified_at: "2026-05-19 14:54:44 +0900"
+---
 ## txManager - txManagerMail 분리
 ```xml
 <bean id="txManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
@@ -826,3 +840,8 @@ DBCP2 `PoolableConnection` API 문서도 validation SQL이 null이면 driver의 
 ```
 
 가장 확실한 검증은 **`validationQuery=null` 확인 + `testOnBorrow=true` 임시 적용 + MariaDB connection KILL 테스트**입니다. 이 테스트에서 끊긴 connection이 업무 SQL까지 전달되지 않으면 `Connection.isValid()` 방식이 정상 동작한다고 판단할 수 있습니다.
+<details>
+  <summary>참고</summary>  
+  <pre>
+  </pre>
+</details>
