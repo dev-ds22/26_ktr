@@ -9,8 +9,8 @@ tags:
   - "memo"
 toc: false
 toc_sticky: true
-date: "2026-05-20"
-last_modified_at: "2026-05-20 08:59:06 +0900"
+date: 2026-05-20
+last_modified_at: 2026-05-20 08:59:06
 ---
 ## MR 후 작업
 
