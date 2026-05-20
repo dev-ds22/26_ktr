@@ -1,0 +1,750 @@
+정확도: 96%
+## 결론
+
+`OrderService`에서 `OrderHistoryService`의 메서드를 호출하는 구조 자체는 **문제 없습니다.** 다만 아래 조건을 만족해야 합니다.
+
+  
+
+```text
+
+1. OrderService와 OrderHistoryService가 모두 Spring Bean이어야 함
+
+2. OrderHistoryService를 new로 생성하지 않고 DI로 주입받아야 함
+
+3. AOP pointcut 대상에 OrderService와 OrderHistoryService가 모두 포함되어야 함
+
+4. 호출 메서드가 Spring Transaction Proxy를 통과해야 함
+
+5. OrderService와 OrderHistoryService가 같은 transaction-manager를 사용해야 함
+
+```
+
+  
+
+Spring 선언적 트랜잭션은 AOP Proxy 기반으로 동작하며, 공식 문서에서도 **프록시를 통과하는 외부 메서드 호출만 트랜잭션 인터셉터가 적용된다**고 설명합니다. 즉 `OrderService → OrderHistoryService`처럼 서로 다른 Spring Bean 간 호출은 일반적으로 프록시를 통과하므로 트랜잭션 적용 대상입니다. 반대로 같은 클래스 내부의 `this.method()` 호출은 프록시를 통과하지 않아 트랜잭션이 적용되지 않을 수 있습니다. ([Home][1])
+
+  
+
+## 전제 설정
+
+  
+
+현재 설정을 기준으로 보면:
+
+  
+
+```xml
+
+<tx:method name="save*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+<tx:method name="insert*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+<tx:method name="update*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+<tx:method name="delete*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+<tx:method name="*" propagation="SUPPORTS" read-only="true" />
+
+```
+
+  
+
+메서드명에 따라 다음처럼 해석됩니다.
+
+  
+
+|                                                                                                            메서드명 | Propagation | read-only   |
+
+| --------------------------------------------------------------------------------------------------------------: | ----------- | ----------- |
+
+|                                                                                                         `save*` | `REQUIRED`  | `false` 기본값 |
+
+|                                                                                                       `insert*` | `REQUIRED`  | `false` 기본값 |
+
+|                                                                                                       `update*` | `REQUIRED`  | `false` 기본값 |
+
+|                                                                                                       `delete*` | `REQUIRED`  | `false` 기본값 |
+
+|                                                                                                         그 외 `*` | `SUPPORTS`  | `true`      |
+
+| `REQUIRED`는 기존 트랜잭션이 있으면 참여하고 없으면 새 트랜잭션을 시작합니다. `SUPPORTS`는 기존 트랜잭션이 있으면 참여하지만, 없으면 트랜잭션 없이 실행합니다. ([Home][2]) |             |             |
+
+  
+
+## OrderService → OrderHistoryService 호출 시 조합별 동작
+
+  
+
+### 1. OrderService `REQUIRED` → OrderHistoryService `REQUIRED`
+
+  
+
+```java
+
+OrderService.saveOrder()
+
+  → OrderHistoryService.updateOrderHistory()
+
+```
+
+  
+
+|       항목 | 동작                                       |
+
+| -------: | ---------------------------------------- |
+
+| OrderService | 트랜잭션 시작                                  |
+
+| OrderHistoryService | OrderService의 기존 트랜잭션에 참여                    |
+
+|  물리 트랜잭션 | 1개                                       |
+
+|   commit | OrderService 메서드 종료 시 함께 commit              |
+
+| rollback | A 또는 B에서 rollback 대상 예외 발생 시 전체 rollback |
+
+|    실무 판단 | 가장 일반적이고 안전                              |
+
+|      흐름: |                                          |
+
+  
+
+```text
+
+Controller
+
+→ OrderService.saveOrder() : REQUIRED, 새 트랜잭션 시작
+
+→ OrderHistoryService.updateOrderHistory() : REQUIRED, 기존 트랜잭션 참여
+
+→ 정상 종료
+
+→ A + B 작업 함께 commit
+
+```
+
+  
+
+이 경우는 일반적인 서비스 계층 트랜잭션 구조로 적합합니다. `OrderService`와 `OrderHistoryService`의 DB 작업이 하나의 업무 단위라면 가장 자연스럽습니다.
+
+  
+
+## 2. OrderService `REQUIRED` → OrderHistoryService `SUPPORTS`
+
+  
+
+```java
+
+OrderService.saveOrder()
+
+  → OrderHistoryService.selectB()
+
+```
+
+  
+
+|                 항목 | 동작                   |
+
+| -----------------: | -------------------- |
+
+|           OrderService | 트랜잭션 시작              |
+
+|           OrderHistoryService | 기존 트랜잭션에 참여          |
+
+|            물리 트랜잭션 | 1개                   |
+
+| OrderHistoryService read-only | 외부 트랜잭션 속성에 흡수될 수 있음 |
+
+|              실무 판단 | 조회 호출이면 대체로 문제 없음    |
+
+|                흐름: |                      |
+
+  
+
+```text
+
+Controller
+
+→ OrderService.saveOrder() : REQUIRED, 새 트랜잭션 시작
+
+→ OrderHistoryService.selectB() : SUPPORTS, 기존 트랜잭션 참여
+
+→ 전체 commit 또는 rollback
+
+```
+
+  
+
+주의할 점은 `OrderHistoryService`가 `SUPPORTS read-only=true`라고 해도, 이미 `OrderService`의 read-write 트랜잭션이 존재하면 B의 read-only 속성이 독립적으로 강제된다고 보기 어렵습니다. Spring 문서 기준으로 read-only는 트랜잭션 서브시스템에 대한 힌트이며, 쓰기 시도를 반드시 실패시키는 보장 장치는 아닙니다. ([Home][2])
+
+즉 이 경우:
+
+  
+
+```text
+
+OrderService REQUIRED read-write 트랜잭션
+
+→ OrderHistoryService SUPPORTS read-only=true 참여
+
+```
+
+  
+
+라고 해도 실제 물리 트랜잭션은 OrderService가 만든 read-write 트랜잭션입니다.
+
+  
+
+## 3. OrderService `SUPPORTS` → OrderHistoryService `REQUIRED`
+
+  
+
+```java
+
+OrderService.selectA()
+
+  → OrderHistoryService.updateOrderHistory()
+
+```
+
+  
+
+|          항목 | 외부 트랜잭션 없음                 | 외부 트랜잭션 있음       |
+
+| ----------: | -------------------------- | ---------------- |
+
+|    OrderService | 트랜잭션 없이 실행                 | 기존 트랜잭션 참여       |
+
+|    OrderHistoryService | 새 트랜잭션 시작                  | 기존 트랜잭션 참여       |
+
+| rollback 범위 | OrderHistoryService 트랜잭션만 rollback 가능 | 외부 트랜잭션 전체 영향 가능 |
+
+|       실무 판단 | 호출 위치에 따라 결과가 달라져 주의 필요    |                  |
+
+  
+
+### 외부 트랜잭션이 없는 경우
+
+  
+
+```text
+
+Controller
+
+→ OrderService.selectA() : SUPPORTS, 트랜잭션 없음
+
+→ OrderHistoryService.updateOrderHistory() : REQUIRED, 새 트랜잭션 시작
+
+→ OrderHistoryService 종료 시 commit
+
+→ OrderService 나머지 로직 실패
+
+```
+
+  
+
+이 경우 `OrderHistoryService.updateOrderHistory()`는 이미 commit될 수 있습니다. 이후 OrderService의 후속 로직에서 예외가 발생해도 OrderService 자체는 트랜잭션이 없었기 때문에 OrderHistoryService에서 commit된 내용을 같이 rollback할 수 없습니다.
+
+예:
+
+  
+
+```java
+
+public void selectA() {
+
+    bService.updateOrderHistory(); // REQUIRED로 별도 트랜잭션 시작 후 commit 가능
+
+    throw new RuntimeException("A 후속 로직 실패");
+
+}
+
+```
+
+  
+
+결과:
+
+  
+
+```text
+
+OrderHistoryService.updateOrderHistory() commit됨
+
+OrderService 후속 로직 실패
+
+OrderService 전체 rollback 불가
+
+```
+
+  
+
+이 조합이 위험한 이유는 **OrderService가 업무 흐름의 상위 서비스인데 SUPPORTS이면 전체 업무 단위 트랜잭션 경계가 없을 수 있기 때문**입니다.
+
+  
+
+### 외부 트랜잭션이 있는 경우
+
+  
+
+```text
+
+OtherService.saveX() : REQUIRED
+
+→ OrderService.selectA() : SUPPORTS, 기존 트랜잭션 참여
+
+→ OrderHistoryService.updateOrderHistory() : REQUIRED, 기존 트랜잭션 참여
+
+```
+
+  
+
+이 경우에는 전체가 하나의 트랜잭션에 묶입니다. 문제는 **동일한 OrderService 메서드가 호출 위치에 따라 트랜잭션 있음/없음이 달라진다는 점**입니다.
+
+  
+
+## 4. OrderService `SUPPORTS` → OrderHistoryService `SUPPORTS`
+
+  
+
+```java
+
+OrderService.selectA()
+
+  → OrderHistoryService.selectB()
+
+```
+
+  
+
+|                                  항목 | 외부 트랜잭션 없음               | 외부 트랜잭션 있음         |
+
+| ----------------------------------: | ------------------------ | ------------------ |
+
+|                            OrderService | 트랜잭션 없음                  | 기존 트랜잭션 참여         |
+
+|                            OrderHistoryService | 트랜잭션 없음                  | 기존 트랜잭션 참여         |
+
+|                           read-only | DB read-only 트랜잭션 기대 어려움 | 외부 트랜잭션 속성에 따라 달라짐 |
+
+|                              조회 일관성 | 약함                       | 외부 트랜잭션 범위에 따름     |
+
+|                               실무 판단 | 단순 조회는 가능, 복합 조회는 주의     |                    |
+
+| 외부 트랜잭션이 없으면 A와 B 모두 트랜잭션 없이 실행됩니다. |                          |                    |
+
+  
+
+```text
+
+Controller
+
+→ OrderService.selectA() : SUPPORTS, 트랜잭션 없음
+
+→ OrderHistoryService.selectB() : SUPPORTS, 트랜잭션 없음
+
+```
+
+  
+
+단순 단건 조회라면 큰 문제가 없을 수 있습니다. 하지만 OrderService와 OrderHistoryService가 여러 SELECT를 조합해서 하나의 화면/업무 데이터를 만들면, 서비스 단위의 일관성은 약합니다.
+
+  
+
+## 핵심 비교표
+
+  
+
+|   OrderService | OrderHistoryService   | 외부 TX 없음              | 외부 TX 있음         | 실무 판단           |
+
+| ---------: | ---------- | --------------------- | ---------------- | --------------- |
+
+| `REQUIRED` | `REQUIRED` | A가 TX 시작, B 참여        | 외부 TX에 A/B 모두 참여 | 안전              |
+
+| `REQUIRED` | `SUPPORTS` | A가 TX 시작, B 참여        | 외부 TX에 A/B 모두 참여 | 조회성 B면 적합       |
+
+| `SUPPORTS` | `REQUIRED` | A는 TX 없음, B가 별도 TX 시작 | 외부 TX에 A/B 모두 참여 | 호출 위치별 동작 차이 주의 |
+
+| `SUPPORTS` | `SUPPORTS` | A/B 모두 TX 없음          | 외부 TX에 A/B 모두 참여 | 단순 조회 외에는 주의    |
+
+  
+
+## 현재 설정에서 특히 조심할 케이스
+
+  
+
+### 1. 상위 OrderService가 `SUPPORTS`인데 내부에서 OrderHistoryService 쓰기 호출
+
+  
+
+```java
+
+public void processA() {
+
+    bService.updateOrderHistory();
+
+    // 후속 로직
+
+}
+
+```
+
+  
+
+`processA()`가 `save*`, `insert*`, `update*`, `delete*`에 걸리지 않으면:
+
+  
+
+```text
+
+OrderService.processA() → SUPPORTS read-only=true
+
+OrderHistoryService.updateOrderHistory() → REQUIRED
+
+```
+
+  
+
+외부 트랜잭션이 없을 경우:
+
+  
+
+```text
+
+OrderService는 트랜잭션 없음
+
+OrderHistoryService만 별도 트랜잭션 생성
+
+```
+
+  
+
+이러면 OrderService 전체 흐름이 하나의 트랜잭션으로 묶이지 않습니다. 따라서 `process*`, `execute*`, `approve*`, `cancel*`, `sync*` 같은 업무 처리성 메서드가 있다면 `REQUIRED`에 포함하는 것이 안전합니다.
+
+  
+
+```xml
+
+<tx:method name="process*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+<tx:method name="execute*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+<tx:method name="approve*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+<tx:method name="cancel*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+```
+
+  
+
+## 2. OrderService가 `SUPPORTS read-only=true`인데 OrderHistoryService가 쓰기
+
+  
+
+현재 fallback:
+
+  
+
+```xml
+
+<tx:method name="*" propagation="SUPPORTS" read-only="true" />
+
+```
+
+  
+
+이 설정은 “그 외 메서드는 읽기 전용”처럼 보이지만, 기존 트랜잭션이 없으면 새 트랜잭션을 만들지 않습니다. 따라서 DB 레벨 read-only 트랜잭션이 시작된다고 보기 어렵습니다. read-only는 기본적으로 힌트이며, 트랜잭션 매니저가 해석하지 못하면 무시될 수 있습니다. ([Home][2])
+
+즉:
+
+  
+
+```text
+
+OrderService.기타메서드() : SUPPORTS read-only=true
+
+→ 트랜잭션 없음
+
+→ OrderHistoryService.updateOrderHistory() : REQUIRED
+
+→ OrderHistoryService에서 새 read-write 트랜잭션 시작 가능
+
+```
+
+  
+
+이 동작은 XML 설정만 보면 직관적이지 않아 실무 장애 분석 시 혼동될 수 있습니다.
+
+  
+
+## 3. 외부 read-only 트랜잭션 안에서 OrderHistoryService 쓰기 호출
+
+  
+
+예:
+
+  
+
+```text
+
+OrderService.selectA() : REQUIRED read-only=true
+
+→ OrderHistoryService.updateOrderHistory() : REQUIRED read-write
+
+```
+
+  
+
+이 경우 OrderHistoryService의 `REQUIRED`는 새 트랜잭션을 만들지 않고 OrderService의 기존 read-only 트랜잭션에 참여합니다. Spring 문서에 따르면 기본적으로 내부 트랜잭션 선언의 isolation, timeout, read-only 속성은 외부 트랜잭션에 참여할 때 조용히 무시될 수 있으며, 엄격하게 검증하려면 `validateExistingTransactions` 설정을 사용할 수 있습니다. ([Home][3])
+
+개선:
+
+  
+
+```xml
+
+<bean id="txManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+
+    <property name="dataSource" ref="dataSource"/>
+
+    <property name="validateExistingTransaction" value="true"/>
+
+</bean>
+
+```
+
+  
+
+이 설정을 검토하면 read-only/read-write 불일치를 더 빨리 발견할 수 있습니다.
+
+  
+
+## 문제 없는 구조
+
+  
+
+아래 구조라면 대부분 문제 없습니다.
+
+  
+
+```java
+
+@Service
+
+public class OrderService {
+
+    private final OrderHistoryService bService;
+
+  
+
+    public OrderService(OrderHistoryService bService) {
+
+        this.bService = bService;
+
+    }
+
+  
+
+    public void saveOrder() {
+
+        // A 작업
+
+        bService.updateOrderHistory();
+
+        // A 후속 작업
+
+    }
+
+}
+
+```
+
+  
+
+조건:
+
+  
+
+```text
+
+OrderService.saveOrder() = REQUIRED
+
+OrderHistoryService.updateOrderHistory() = REQUIRED
+
+OrderHistoryService가 Spring Bean Proxy로 주입됨
+
+같은 txManager 사용
+
+예외를 잡아먹지 않고 밖으로 던짐
+
+```
+
+  
+
+이 경우:
+
+  
+
+```text
+
+OrderService.saveOrder()에서 트랜잭션 시작
+
+OrderHistoryService.updateOrderHistory()는 같은 트랜잭션 참여
+
+A 또는 B에서 예외 발생
+
+전체 rollback
+
+```
+
+  
+
+## 문제 있는 구조
+
+  
+
+### 1. 같은 클래스 내부 호출
+
+  
+
+```java
+
+public class OrderService {
+
+    public void saveOrder() {
+
+        updateA();
+
+    }
+
+  
+
+    public void updateA() {
+
+        // DB update
+
+    }
+
+}
+
+```
+
+  
+
+`saveOrder()`에서 같은 클래스의 `updateA()`를 호출하면 프록시를 통과하지 않을 수 있습니다. 이 경우 `updateA()`에 해당하는 트랜잭션 속성이 별도로 적용되지 않을 수 있습니다. Spring 공식 문서도 프록시 모드에서는 self-invocation이 트랜잭션으로 이어지지 않는다고 설명합니다. ([Home][1])
+
+  
+
+### 2. OrderHistoryService를 직접 생성
+
+  
+
+```java
+
+OrderHistoryService bService = new OrderHistoryService();
+
+bService.updateOrderHistory();
+
+```
+
+  
+
+이 경우 Spring Proxy가 아니므로 트랜잭션 AOP가 적용되지 않습니다.
+
+  
+
+### 3. 예외를 내부에서 삼킴
+
+  
+
+```java
+
+public void saveOrder() {
+
+    try {
+
+        bService.updateOrderHistory();
+
+    } catch (Exception e) {
+
+        log.error("error", e);
+
+    }
+
+}
+
+```
+
+  
+
+예외를 잡고 다시 던지지 않으면 Spring TransactionInterceptor는 정상 종료로 판단할 수 있습니다. 그러면 rollback되지 않고 commit될 수 있습니다.
+
+  
+
+## 실무 개선안
+
+  
+
+현재 설정은 최소한 아래처럼 확장하는 것이 안전합니다.
+
+  
+
+```xml
+
+<tx:attributes>
+
+    <!-- 조회 -->
+
+    <tx:method name="get*" propagation="REQUIRED" read-only="true" />
+
+    <tx:method name="find*" propagation="REQUIRED" read-only="true" />
+
+    <tx:method name="select*" propagation="REQUIRED" read-only="true" />
+
+    <tx:method name="search*" propagation="REQUIRED" read-only="true" />
+
+    <tx:method name="count*" propagation="REQUIRED" read-only="true" />
+
+    <tx:method name="exists*" propagation="REQUIRED" read-only="true" />
+
+  
+
+    <!-- 쓰기/업무 처리 -->
+
+    <tx:method name="save*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+    <tx:method name="insert*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+    <tx:method name="update*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+    <tx:method name="delete*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+    <tx:method name="process*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+    <tx:method name="execute*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+    <tx:method name="approve*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+    <tx:method name="cancel*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+  
+
+    <!-- 미분류는 안전하게 REQUIRED -->
+
+    <tx:method name="*" propagation="REQUIRED" rollback-for="java.lang.Exception" />
+
+</tx:attributes>
+
+```
+
+  
+
+조회 성능보다 정합성과 장애 예방이 중요하면 `* SUPPORTS read-only=true`를 fallback으로 두는 것보다, **조회 메서드를 명시적으로 `REQUIRED read-only=true`로 두고 나머지는 `REQUIRED`로 보호**하는 편이 안전합니다.
+
+  
+
+## 최종 판단
+
+  
+
+`OrderService → OrderHistoryService` 호출 자체는 **서로 다른 Spring Bean 간 호출이면 문제 없습니다.** 그러나 `OrderService`가 `SUPPORTS`이고 `OrderHistoryService`가 `REQUIRED`인 경우, 외부 트랜잭션이 없으면 OrderService 전체는 트랜잭션이 아니고 OrderHistoryService만 별도 트랜잭션이 됩니다. 이 경우 OrderService 후속 로직 실패 시 OrderHistoryService의 commit을 함께 되돌릴 수 없으므로 업무 단위 원자성이 깨질 수 있습니다. 따라서 상위 업무 흐름을 담당하는 OrderService 메서드는 가급적 `REQUIRED`로 두고, `SUPPORTS`는 단순 조회성 메서드에만 제한적으로 사용하는 것이 적합합니다.

@@ -325,6 +325,67 @@ function normalizeMarkdownHeadingNumbersPreserveLevels(content) {
 
   return result.join("\n").trim();
 }
+function collapseExcessBlankLinesOutsideCodeBlocks(content) {
+  const lines = String(content || "").replace(/\r\n/g, "\n").split("\n");
+  const result = [];
+  let blankCount = 0;
+  let inCodeBlock = false;
+  let fenceMarker = "";
+  let inPreBlock = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const fenceMatch = line.match(/^\s*(```|~~~)/);
+    const preOpenMatch = /<pre(?:\s[^>]*)?>/i.test(line);
+    const preCloseMatch = /<\/pre>/i.test(line);
+
+    if (preOpenMatch && !preCloseMatch) {
+      inPreBlock = true;
+    }
+
+    if (fenceMatch) {
+      const currentFence = fenceMatch[1];
+
+      if (!inCodeBlock) {
+        inCodeBlock = true;
+        fenceMarker = currentFence;
+      } else if (currentFence === fenceMarker) {
+        inCodeBlock = false;
+        fenceMarker = "";
+      }
+
+      result.push(line);
+      blankCount = 0;
+      continue;
+    }
+
+    if (inCodeBlock || inPreBlock) {
+      result.push(line);
+
+      if (preCloseMatch) {
+        inPreBlock = false;
+      }
+
+      continue;
+    }
+
+    if (trimmed === "") {
+      blankCount += 1;
+
+      // 빈 라인이 2줄 이상 연속되지 않도록 1줄만 유지
+      if (blankCount <= 1) {
+        result.push("");
+      }
+
+      continue;
+    }
+
+    blankCount = 0;
+    result.push(line);
+  }
+
+  return result.join("\n").trim() + "\n";
+}
 // 원본 YAML Front Matter 추출
 const frontMatterInfo = extractFrontMatter(originalContent);
 const sourceFrontMatterText = frontMatterInfo.frontMatterText;
@@ -395,7 +456,7 @@ originalContent = imageConvertResult.convertedContent;
 originalContent = normalizeMarkdownHeadingNumbersPreserveLevels(originalContent);
 // const headingBlock = hideFirstHeading ? "" : `# ${title}\n\n`;
 const headingBlock = "";
-const newContent = `---
+let newContent = `---
 layout: single
 title: "${escapeYaml(title)}"
 excerpt: "${escapeYaml(title)}"
@@ -413,6 +474,8 @@ ${headingBlock}${originalContent}
   </pre>
 </details>
 `;
+// Markdown 문법을 해치지 않는 범위에서 연속 빈 라인 축소
+newContent = collapseExcessBlankLinesOutsideCodeBlocks(newContent);
 // 동일 파일명이 있으면 덮어쓰기
 fs.writeFileSync(outputPath, newContent, "utf8");
 let noticeMessage = `Jekyll 변환 파일 생성/덮어쓰기 완료: ${outputPath}`;
