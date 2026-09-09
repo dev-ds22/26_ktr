@@ -481,3 +481,280 @@ git cherry-pick -n <hash>
 ```
 
 특히 여러 개발자가 사용하는 `dev`라면 **`origin/dev` 최신화 → cherry-pick → diff 확인 → 빌드/테스트 → push/MR** 순서를 지키는 것이 안전합니다.
+
+# 여러 Commit의 변경사항을 `파일별`로 `dev`에 반영하는 방법
+
+여러 번 Commit된 `origin/feature/test1`의 변경 중 **특정 파일만 `dev`에 가져오려는 경우**, `cherry-pick`보다 `git restore --source`가 더 간단합니다.
+
+## 1. 가장 추천: feature 브랜치의 특정 파일만 현재 상태로 가져오기
+
+예를 들어 `feature/test1`에서 여러 번 Commit된 결과 중 아래 2개 파일만 `dev`에 반영한다고 가정합니다.
+
+```text
+ServiceA.java
+MapperA.xml
+```
+
+먼저 `dev` 최신화:
+
+```bash
+git fetch origin
+git switch dev
+git pull origin dev
+```
+
+그다음 필요한 파일만 가져옵니다.
+
+```bash
+git restore --source=origin/feature/test1 -- src/main/java/.../ServiceA.java
+git restore --source=origin/feature/test1 -- src/main/resources/.../MapperA.xml
+```
+
+여러 파일을 한 번에:
+
+```bash
+git restore --source=origin/feature/test1 -- \
+src/main/java/.../ServiceA.java \
+src/main/resources/.../MapperA.xml
+```
+
+확인:
+
+```bash
+git status
+git diff
+```
+
+정상이라면:
+
+```bash
+git add src/main/java/.../ServiceA.java
+git add src/main/resources/.../MapperA.xml
+git commit -m "feature/test1 일부 파일 dev 반영"
+```
+
+그 후:
+
+```bash
+git push origin dev
+```
+
+## 2. 이 방식이 의미하는 것
+
+예를 들어 `ServiceA.java`가 feature 브랜치에서:
+
+```text
+Commit A : ServiceA.java 수정
+Commit B : ServiceA.java 수정
+Commit C : ServiceA.java 수정
+Commit D : 다른 파일 수정
+Commit E : ServiceA.java 수정
+```
+
+되어 있다면:
+
+```bash
+git restore --source=origin/feature/test1 -- ServiceA.java
+```
+
+는 A/B/C/E를 하나씩 가져오는 것이 아니라,
+**현재 `origin/feature/test1`에 존재하는 ServiceA.java 최종 상태 전체**를 가져옵니다.
+즉:
+
+```text
+origin/dev
+    ServiceA.java V1
+origin/feature/test1
+    Commit A → V2
+    Commit B → V3
+    Commit C → V4
+    Commit E → V5
+git restore --source=origin/feature/test1 -- ServiceA.java
+                   ↓
+dev 작업영역의 ServiceA.java = V5
+```
+
+## 3. 주의: dev에서도 같은 파일을 수정했다면
+
+이 부분이 중요합니다.
+현재:
+
+```text
+origin/dev             origin/feature/test1
+ServiceA.java          ServiceA.java
+   │                       │
+   ├─ dev 전용 수정          ├─ feature 수정
+   │                       │
+```
+
+상태에서:
+
+```bash
+git restore --source=origin/feature/test1 -- ServiceA.java
+```
+
+하면 **dev의 ServiceA.java를 feature/test1 파일 상태로 바꿉니다.**
+따라서 `dev`에만 존재하는 중요한 수정도 없어질 수 있습니다.
+먼저 비교하는 것이 좋습니다.
+
+```bash
+git diff origin/dev origin/feature/test1 -- src/main/java/.../ServiceA.java
+```
+
+## 4. 파일 전체가 아니라 변경 코드 일부만 가져오고 싶다면
+
+이 경우 `-p` 옵션이 좋습니다.
+
+```bash
+git restore -p --source=origin/feature/test1 -- src/main/java/.../ServiceA.java
+```
+
+그러면 Git이 변경 영역별로 질문합니다.
+
+```text
+Apply this hunk to worktree [y,n,q,a,d,s,e,?]?
+```
+
+| 입력  | 의미               |
+| --- | ---------------- |
+| `y` | 이 변경 적용          |
+| `n` | 이 변경 적용하지 않음     |
+| `s` | 변경 영역을 더 작게 분할   |
+| `a` | 이후 변경 모두 적용      |
+| `d` | 이후 변경 모두 적용하지 않음 |
+| `q` | 종료               |
+
+따라서 **파일 안에서도 원하는 코드만 골라서 반영** 가능합니다.
+
+## 5. 특정 Commit 시점의 파일만 가져오는 방법
+
+예를 들어:
+
+```text
+Commit A  abc111
+Commit B  def222
+Commit C  123abcd
+```
+
+중 `Commit B` 당시의 `ServiceA.java`만 가져오고 싶다면:
+
+```bash
+git restore --source=def222 -- src/main/java/.../ServiceA.java
+```
+
+또는 옛 Git 명령:
+
+```bash
+git checkout def222 -- src/main/java/.../ServiceA.java
+```
+
+현재는 `git restore` 사용을 권장합니다.
+
+## 6. 여러 Commit 중 "특정 Commit의 특정 파일 변경"만 반영
+
+이건 조금 다릅니다.
+예를 들어:
+
+```text
+Commit A
+ ├─ A.java
+ └─ B.java
+Commit B
+ ├─ A.java
+ └─ C.java
+Commit C
+ ├─ B.java
+ └─ D.java
+```
+
+원하는 것이:
+
+```text
+Commit A의 A.java 변경
+Commit B의 C.java 변경
+Commit C의 D.java 변경
+```
+
+이라면 단순 `restore --source=feature/test1`과는 의미가 다릅니다.
+이 경우 각 Commit에서 파일을 가져올 수 있습니다.
+
+```bash
+git restore --source=<Commit-A> -- A.java
+git restore --source=<Commit-B> -- C.java
+git restore --source=<Commit-C> -- D.java
+```
+
+그리고:
+
+```bash
+git diff
+git add A.java C.java D.java
+git commit -m "선택 파일 변경사항 반영"
+```
+
+단, 이것은 각 Commit 당시의 **파일 전체 상태**를 가져옵니다.
+
+## 7. Commit의 특정 파일에 대한 "변경분만" 정확히 적용하려면
+
+이 경우에는 patch 방식이 더 정확합니다.
+예:
+
+```bash
+git show <commit-hash> -- src/main/java/.../ServiceA.java
+```
+
+내용 확인 후:
+
+```bash
+git show <commit-hash> -- src/main/java/.../ServiceA.java | git apply
+```
+
+다만 실무에서는 충돌 및 컨텍스트 문제가 생길 수 있으므로 일반적으로는 다음 두 방식이 더 관리하기 쉽습니다.
+
+```text
+파일 최종 상태 전체 필요
+→ git restore --source=origin/feature/test1 -- 파일
+파일 내부 일부 코드만 필요
+→ git restore -p --source=origin/feature/test1 -- 파일
+```
+
+## 8. 현재 상황에서 가장 실용적인 명령
+
+`feature/test1`에서 여러 번 Commit했지만 **A.java, B.java만 최종 결과를 dev에 반영**하려면:
+
+```bash
+git fetch origin
+git switch dev
+git pull origin dev
+git diff origin/dev origin/feature/test1 -- A.java
+git diff origin/dev origin/feature/test1 -- B.java
+git restore --source=origin/feature/test1 -- A.java B.java
+git diff
+git add A.java B.java
+git commit -m "feature/test1 일부 파일 반영"
+git push origin dev
+```
+
+### 파일 안에서도 일부 코드만 선택
+
+```bash
+git restore -p --source=origin/feature/test1 -- A.java
+```
+
+## 결론
+
+| 원하는 작업                | 명령                                                           |
+| --------------------- | ------------------------------------------------------------ |
+| feature의 특정 파일 최종본 반영 | `git restore --source=origin/feature/test1 -- A.java`        |
+| 여러 파일 최종본 반영          | `git restore --source=origin/feature/test1 -- A.java B.java` |
+| 파일 안의 일부 변경만 선택       | `git restore -p --source=origin/feature/test1 -- A.java`     |
+| 특정 Commit 당시 파일 가져오기  | `git restore --source=<commit> -- A.java`                    |
+| Commit 전체 반영          | `git cherry-pick <commit>`                                   |
+
+**원태님 상황처럼 `feature/test1`에 여러 번 Commit/Push가 끝났고, 그 결과 중 파일 단위로 `dev`에 옮기는 목적이라면 `cherry-pick`보다는 아래가 가장 단순합니다.**
+
+```bash
+git restore --source=origin/feature/test1 -- <반영할파일>
+```
+
+단, **같은 파일을 `dev`에서도 별도로 수정했다면 파일 전체를 덮어쓰지 않도록 `git diff` 확인 후 `git restore -p` 방식이 더 안전합니다.**
