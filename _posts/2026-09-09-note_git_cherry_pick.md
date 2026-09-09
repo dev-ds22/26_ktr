@@ -10,7 +10,7 @@ tags:
 toc: false
 toc_sticky: true
 date: "2026-09-09"
-last_modified_at: "2026-09-09 11:07:25 +0900"
+last_modified_at: "2026-09-09 11:36:59 +0900"
 mermaid: false
 ---
 ## 1. `origin/feature/test1`의 일부 변경만 `origin/dev`에 반영하는 Cherry-pick 방법
