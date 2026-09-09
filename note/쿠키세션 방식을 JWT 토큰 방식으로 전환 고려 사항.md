@@ -1,0 +1,922 @@
+## Spring 5.3 커머스 시스템의 `Session → Spring Security + Token` 전환 분석
+### 1. 결론
+현재의
+```text
+JSESSIONID Cookie
+    ↓
+HttpSession
+    ↓
+회원정보/로그인정보/권한정보
+```
+구조를
+```text
+Access Token
+    ↓
+Spring Security Filter Chain
+    ↓
+Authentication / SecurityContext
+```
+구조로 변경하는 것은 가능합니다.
+다만 다음 두 가지는 분리해서 판단하는 것이 중요합니다.
+
+| 변경 | 필요성 | 난이도 |
+|---|---:|---:|
+| 기존 자체 로그인/권한 로직 → Spring Security | **권장** | 중 |
+| HttpSession → Token 방식 | 요구사항에 따라 선택 | 중~상 |
+| Redis 도입 | **Token 사용 자체에는 필수 아님** | 별도 판단 |
+- 특히 현재 시스템이 `Spring 5.3 + JSP/Tiles + AJAX + 일반 form/page 이동` 형태라면 **Spring Security는 도입하되 처음부터 완전 Stateless JWT로 전환하는 것은 권장하지 않습니다.**
+- 가장 현실적인 전환 순서는 다음입니다.
+```text
+1단계
+기존 HttpSession 유지
++
+Spring Security 도입
+        ↓
+2단계
+Session에 저장된 데이터 분류/제거
+        ↓
+3단계
+API 영역부터 Token 적용
+        ↓
+4단계
+필요성이 확인되면 전체 Stateless화
+```
+- Spring Security는 Session 기반 인증도 공식적으로 지원하며, Token 기반 Resource Server는 JWT와 Opaque Token 모두 지원합니다. JWT의 경우 서명과 `exp`, `nbf`, `iss` 등을 검증하여 `Authentication`을 생성하는 구조입니다. 
+---
+## 2. 가장 먼저 해야 할 작업: `HttpSession` 사용현황 전수조사
+Token으로 변경하면서 가장 많이 발생하는 설계 오류가
+
+> `session에 들어 있던 모든 정보를 JWT에 넣는 것`
+입니다.
+이렇게 하면 안 됩니다.
+현재 프로젝트 전체에서 다음을 조사해야 합니다.
+```java
+request.getSession()
+request.getSession(true)
+request.getSession(false)
+session.getAttribute(...)
+session.setAttribute(...)
+session.removeAttribute(...)
+session.invalidate()
+```
+그리고 Attribute를 다음처럼 분류합니다.
+
+| 현재 Session 정보 |     Token 이전 여부 | 권장 저장소               |
+| ------------- | --------------: | -------------------- |
+| 회원번호          |              가능 | Access Token `sub` 등 |
+| Login ID      |              가능 | Token 최소 Claim       |
+| 사용자 ROLE      |              가능 | Token 또는 DB          |
+| 회원 이름         |          가급적 제외 | DB 조회                |
+| 전화번호/이메일      |           제외 권장 | DB                   |
+| 기업회원 정보       |           제외 권장 | DB/Cache             |
+| 장바구니          |        Token 금지 | DB/Redis             |
+| 주문 진행 상태      |        Token 금지 | DB                   |
+| 결제 상태         |        Token 금지 | DB                   |
+| 화면 임시정보       |        Token 금지 | Request/Client       |
+| CSRF Token    |           별도 관리 | Security 정책          |
+| 중복로그인 정보      | Token만으로 해결 어려움 | Redis/DB 등           |
+- JWT는 기본적으로 **서명된 데이터이지 암호화된 데이터가 아닙니다.**
+- 따라서 Client가 Payload를 확인할 수 있으므로 개인정보를 JWT에 넣는 것은 피해야 합니다.
+- 권장 Claim은 매우 작게 유지합니다.
+```json
+{
+  "sub": "12345678",
+  "roles": ["ROLE_USER"],
+  "iat": 1788900000,
+  "exp": 1788900600,
+  "jti": "..."
+}
+```
+---
+## 3. Redis는 필수인가?
+### 결론: 아니다.
+JWT Access Token만 사용하면 Redis 없이도 가능합니다.
+```text
+Login
+  ↓
+JWT 발급
+  ↓
+Client
+  ↓
+Authorization: Bearer eyJ...
+  ↓
+WAS 1 / WAS 2
+  ↓
+JWT 서명 검증
+  ↓
+Authentication 생성
+```
+
+WAS가 Token의 서명을 독립적으로 검증할 수 있기 때문에:
+```text
+Redis 조회 X
+DB 조회 X
+Session Replication X
+```
+
+구조도 가능합니다.
+이것이 Stateless JWT의 가장 큰 장점입니다.
+### 하지만 요구사항이 추가되면 얘기가 달라집니다.
+| 요구사항                   | Redis/DB 등 중앙 저장소 |
+| ---------------------- | ----------------: |
+| 단순 Access JWT 검증       |               불필요 |
+| Token 만료시간만으로 로그아웃 처리  |               불필요 |
+| Refresh Token          |                권장 |
+| Refresh Token Rotation |            사실상 필요 |
+| 강제 로그아웃                |         필요 가능성 높음 |
+| 관리자 사용자 차단 즉시 반영       |                필요 |
+| 중복로그인 방지               |            **필요** |
+| 기존 로그인 Token 즉시 폐기     |            **필요** |
+| 탈취 Token 즉시 차단         |                필요 |
+| Token Blacklist        |                필요 |
+| 다중 WAS간 로그인 상태 공유      |                필요 |
+여기서 중요한 것은 **Redis가 필수인 것이 아니라 중앙 상태 저장소가 필요한 것**입니다.
+예를 들어 모두 가능합니다.
+```text
+Redis
+RDB(MariaDB)
+Authorization Server
+Distributed Cache
+```
+---
+## 4. JWT와 Redis의 관계
+많이 혼동하는 부분입니다.
+#### 완전 Stateless JWT
+```text
+Client
+ │
+ │ JWT
+ ▼
+WAS
+ │
+ ├─ Signature
+ ├─ exp
+ ├─ iss
+ └─ roles
+```
+Redis가 없습니다.
+장점:
+```text
+WAS 수평 확장 쉬움
+Session Replication 불필요
+Redis 장애 영향 없음
+매 요청 DB 조회 불필요
+```
+단점:
+```text
+발급된 JWT를 서버에서 회수하기 어려움
+```
+예를 들어 Access Token을 15분으로 발급했다고 하면:
+```text
+10:00 로그인
+10:01 JWT 발급
+10:02 관리자 강제 로그아웃
+```
+Redis나 DB 검증이 없다면 해당 JWT는:
+```text
+10:15 exp
+```
+- 까지 유효할 수 있습니다.
+---
+## 5. Redis를 사용한 Stateful Token
+반대로 다음처럼 만들 수도 있습니다.
+```text
+Client
+ │
+ │ JWT
+ ▼
+WAS
+ │
+ ├─ JWT 자체 검증
+ │
+ └─ Redis 검증
+        │
+        ├─ revoked?
+        ├─ loginVersion?
+        ├─ userId?
+        └─ tokenId?
+```
+그러면 즉시 폐기가 가능합니다.
+```text
+ADMIN
+  │
+  └─ revoke user 123
+           ↓
+Redis
+user:123:tokenVersion=7
+```
+JWT:
+```json
+{
+  "sub": "123",
+  "tokenVersion": 6
+}
+```
+검증:
+```text
+JWT tokenVersion = 6
+Redis tokenVersion = 7
+        ↓
+INVALID
+```
+그러나 이렇게 되면:
+```text
+JWT의 Stateless 장점
+        ↓
+일부 상실
+```
+- 합니다.
+---
+## 6. 현재 시스템에서는 `Refresh Token` 때문에 Redis가 유용해짐
+실무적인 구조는 보통 다음 형태입니다.
+```text
+                  ┌─ Access Token
+Login ────────────┤   5~15분
+                  │
+                  └─ Refresh Token
+                      수일~수주
+```
+Access Token:
+```text
+Stateless JWT
+Redis 조회 안 함
+```
+Refresh Token:
+```text
+Redis 또는 DB 저장
+```
+예:
+```text
+Redis
+refresh:{token-id}
+ ├─ userId
+ ├─ expiresAt
+ ├─ familyId
+ ├─ used
+ └─ deviceId
+```
+Refresh 시:
+```text
+Refresh Token
+     ↓
+Redis 검증
+     ↓
+기존 Refresh Token 폐기
+     ↓
+새 Refresh Token 발급
+     ↓
+새 Access Token 발급
+```
+- 이를 `Refresh Token Rotation` 형태로 구현할 수 있습니다.
+---
+## 7. 현재 커머스 환경에서는 중요한 문제가 하나 있음
+현재 시스템이 SPA가 아니라
+```text
+Browser
+ ↓
+JSP/Tiles
+ ↓
+Controller
+ ↓
+Service
+```
+구조라면 일반 브라우저 페이지 이동에서는:
+```http
+Authorization: Bearer ...
+```
+를 임의로 자동 추가할 수 없습니다.
+AJAX에서는 가능합니다.
+```javascript
+$.ajax({
+    headers: {
+        "Authorization": "Bearer " + accessToken
+    }
+});
+```
+하지만 다음과 같은 요청은 문제가 됩니다.
+```html
+<a href="/mypage/order.do">
+<form action="/order/save.do">
+<img src="/member/image.do">
+window.location.href="/mypage.do";
+```
+브라우저가 자동으로:
+```http
+Authorization: Bearer ...
+```
+를 추가하지 않습니다.
+반면 Cookie는 자동입니다.
+```text
+GET /mypage.do
+Cookie: JSESSIONID=...
+```
+- 이 차이가 매우 중요합니다.
+---
+## 8. 그래서 Token을 Cookie에 넣는 구조도 존재
+예:
+```http
+Set-Cookie:
+ACCESS_TOKEN=eyJ...
+Secure;
+HttpOnly;
+SameSite=Lax
+```
+구조:
+```text
+Browser
+     │
+     │ HttpOnly Cookie
+     │ ACCESS_TOKEN
+     ▼
+Spring Security
+     │
+     ▼
+JWT 검증
+```
+이 방식은 기존 JSP 사이트와 궁합이 좋습니다.
+하지만 여기서:
+```text
+Cookie를 사용한다
+≠
+HttpSession을 사용한다
+```
+입니다.
+즉:
+```text
+Cookie
+ └─ JWT 저장/전달
+
+HttpSession
+ └─ 사용하지 않음
+```
+- 구조도 가능합니다.
+---
+## 9. Token을 Cookie에 저장하면 CSRF를 다시 고려해야 함
+Token이라고 해서 자동으로 CSRF 문제가 없어지는 것이 아닙니다.
+```text
+Authorization Header
+```
+로 Token을 보내면 브라우저가 자동 첨부하지 않기 때문에 CSRF 위험이 크게 감소하지만,
+```text
+Cookie: ACCESS_TOKEN=...
+```
+이면 브라우저가 자동으로 전송하므로 CSRF를 고려해야 합니다.
+Spring Security도 로그인 가능한 브라우저 애플리케이션에서 CSRF 방어를 중요하게 다루고 있으며 기본적으로 unsafe HTTP method에 대한 CSRF 보호를 제공합니다. 
+따라서:
+```text
+HttpOnly
+Secure
+SameSite
+CSRF Token
+Origin/Referer 정책
+```
+- 을 함께 설계해야 합니다.
+---
+## 10. LocalStorage JWT는 현재 시스템에는 추천하지 않음
+흔히 사용하는:
+```javascript
+localStorage.setItem("accessToken", token);
+```
+구조는 기존 JSP 커머스에는 특히 권장하지 않습니다.
+이유:
+```text
+XSS 발생
+ ↓
+JavaScript 실행
+ ↓
+localStorage 읽기 가능
+ ↓
+Token 탈취
+```
+반면:
+```text
+HttpOnly Cookie
+```
+는 JavaScript에서 읽을 수 없습니다.
+- 그래서 Browser 기반 커머스 사이트에서는 저장 위치를 반드시 보안 설계 단계에서 결정해야 합니다.
+---
+## 11. 현재 프로젝트에서 가장 중요한 `중복로그인 방지`
+현재 시스템처럼:
+```text
+사용자 A 로그인
+       ↓
+Session A
+
+같은 사용자 재로그인
+       ↓
+Session A invalidate
+Session B 생성
+```
+구조가 필요하다면 Stateless JWT에서는 문제가 생깁니다.
+```text
+로그인 #1
+Access Token A
+
+로그인 #2
+Access Token B
+```
+단순 JWT에서는 Token B 발급 시:
+```text
+Token A를 제거할 방법이 없음
+```
+따라서 중복로그인 차단을 유지하려면:
+```text
+Redis
+user:{userId}:loginVersion
+```
+또는
+```text
+MariaDB
+LOGIN_TOKEN
+```
+등의 서버 상태가 필요합니다.
+예:
+```text
+로그인 #1
+loginVersion=10
+Token A(version=10)
+
+로그인 #2
+loginVersion=11
+Token B(version=11)
+```
+Token A 요청:
+```text
+JWT = 10
+Redis = 11
+   ↓
+401 Unauthorized
+```
+- 이 요구사항이 유지된다면 **Redis 또는 동일 역할을 하는 중앙 저장소의 도입 가치가 매우 높습니다.**
+---
+## 12. Redis가 없다면 MariaDB로도 가능
+현재 MariaDB 10.6을 사용하고 있으므로 초기 단계에서는 별도 Redis 없이 다음처럼 구현할 수도 있습니다.
+```text
+AUTH_TOKEN
+--------------------------------
+USER_ID
+REFRESH_TOKEN_HASH
+TOKEN_VERSION
+DEVICE_ID
+ISSUED_AT
+EXPIRES_AT
+REVOKED_YN
+LAST_USED_AT
+```
+장점:
+```text
+신규 Infra 없음
+운영 복잡성 감소
+Transaction 관리 쉬움
+```
+단점:
+```text
+Token 요청량 증가 → DB 부하
+Refresh 처리량 증가
+Blacklist 조회가 빈번하면 비효율
+```
+따라서:
+```text
+Refresh Token만 DB 조회
+Access Token은 Stateless
+```
+- 라면 충분히 현실적인 구조입니다.
+---
+## 13. Redis가 특히 유리한 경우
+다음 조건이 많으면 Redis를 권장합니다.
+
+| 조건                     | Redis 필요성 |
+| ---------------------- | --------: |
+| WAS 2대 이상              |         ↑ |
+| 동시 로그인 제어              |        ↑↑ |
+| 즉시 강제 로그아웃             |        ↑↑ |
+| Refresh Token Rotation |        ↑↑ |
+| Token Blacklist        |        ↑↑ |
+| 대규모 사용자                |         ↑ |
+| MSA/API 서버 다수          |        ↑↑ |
+| 로그인 이력/감사만 필요          |    RDB 적합 |
+- 현재처럼 WAS 이중화 환경에서 중복 로그인 및 기존 로그인 폐기까지 요구한다면 Redis가 상당히 합리적인 선택입니다.
+---
+## 14. 그러나 `모든 Access Token을 Redis에 저장`하는 것은 추천하지 않음
+예:
+```text
+Access Token
+   ↓
+Redis
+   ↓
+valid?
+```
+매 요청마다 수행하면 사실상:
+```text
+Session Store
+```
+와 크게 다르지 않습니다.
+오히려:
+```text
+JWT decode
++
+Redis lookup
+```
+두 작업을 모두 수행하게 됩니다.
+따라서 추천 구조는:
+```text
+Access Token
+ └─ Stateless
+
+Refresh Token
+ └─ Stateful(Redis/DB)
+
+Revoke/User Version
+ └─ 필요할 경우 Redis
+```
+
+---
+## 15. 추천 Target Architecture
+현재 시스템을 기준으로 하면 다음 정도가 가장 균형이 좋습니다.
+```text
+                         ┌───────────────────┐
+                         │      Browser      │
+                         └─────────┬─────────┘
+                                   │
+                   HttpOnly Secure Cookie
+                                   │
+                    ┌──────────────┴──────────────┐
+                    │                             │
+              Access Token                 Refresh Token
+               JWT 5~15m                    Long-lived
+                    │                             │
+                    ▼                             ▼
+             ┌──────────────┐              ┌───────────┐
+             │    Nginx     │              │           │
+             └──────┬───────┘              │           │
+                    │                      │           │
+          ┌─────────┴─────────┐            │           │
+          ▼                   ▼            ▼           │
+       WAS #1              WAS #2        Redis         │
+          │                   │            │           │
+          │ JWT Verify        │            ├─ Refresh  │
+          │                   │            ├─ Revoke   │
+          └─────────┬─────────┘            └───────────┘
+                    │
+                    ▼
+                MariaDB
+```
+Access Token 요청:
+```text
+Browser
+ → WAS
+ → JWT 검증
+ → SecurityContext
+ → Controller
+```
+정상 상황에서는 Redis를 안 봅니다.
+Refresh:
+```text
+Browser
+ → /auth/refresh
+ → Redis
+ → Refresh Token Rotation
+ → 새 Access Token
+```
+강제 로그아웃/중복로그인:
+```text
+Redis의 User Login Version
+```
+- 을 활용합니다.
+---
+## 16. Spring Security 적용 시 기존 코드의 가장 큰 변화
+현재:
+```java
+HttpSession session = request.getSession();
+LoginVO loginVO =
+    (LoginVO) session.getAttribute("loginVO");
+
+long userSn = loginVO.getUserSn();
+```
+Spring Security 도입 후:
+```java
+Authentication authentication =
+        SecurityContextHolder.getContext().getAuthentication();
+
+CustomUserPrincipal principal =
+        (CustomUserPrincipal) authentication.getPrincipal();
+
+long userSn = principal.getUserSn();
+```
+또는 Controller:
+```java
+public String myPage(
+        @AuthenticationPrincipal CustomUserPrincipal principal) {
+
+    long userSn = principal.getUserSn();
+
+    ...
+}
+```
+즉 Application 코드에서:
+```text
+HttpSession
+```
+직접 접근을 제거하고:
+```text
+SecurityContext
+```
+- 를 인증의 Single Source of Truth로 만드는 것이 중요합니다.
+---
+## 17. Spring Security Filter 구조
+Token 방식이라면 개념적으로:
+```text
+Request
+   ↓
+Spring Security FilterChain
+   ↓
+Bearer Token 추출
+   ↓
+JWT Signature 검증
+   ↓
+Claim 검증
+   ├─ exp
+   ├─ nbf
+   ├─ iss
+   └─ aud
+   ↓
+Authentication 생성
+   ↓
+SecurityContextHolder
+   ↓
+Authorization
+   ↓
+Controller
+```
+- Spring Security Resource Server는 Bearer Token 인증을 Filter Chain에 통합하고 JWT와 Opaque Token을 모두 공식적으로 지원합니다. 
+---
+## 18. Spring 5.3 프로젝트의 설정 방식
+Spring Security 5.x 계열을 적용한다면 `WebSecurityConfigurerAdapter` 기반 신규 코드를 만드는 것보다는:
+```java
+@Bean
+public SecurityFilterChain securityFilterChain(HttpSecurity http)
+        throws Exception {
+    ...
+    return http.build();
+}
+```
+형태를 추천합니다.
+`WebSecurityConfigurerAdapter`는 Spring Security 5.8에서도 deprecated 되었으며 `SecurityFilterChain` Bean 방식이 권장됩니다. 
+- 다만 현재 프로젝트가 Spring 5.3/JDK11/eGov/JBoss 기반이므로 **Spring Security 버전은 기존 Spring dependency와 BOM 충돌을 반드시 확인한 후 확정**해야 합니다.
+---
+## 19. 실제 Migration 절차
+### Phase 0. 현황 분석
+가장 먼저:
+```text
+session.getAttribute
+session.setAttribute
+getSession()
+invalidate()
+Cookie JSESSIONID 직접 참조
+Ajax session timeout 처리
+Interceptor session 검사
+Filter session 검사
+Controller session 검사
+```
+전수조사합니다.
+특히 다음을 별도로 검색해야 합니다.
+```text
+LOGIN_INFO
+MEMBER_INFO
+userId
+memberSn
+seller
+role
+auth
+JSESSIONID
+```
+---
+### Phase 1. 인증 객체 표준화
+현재:
+```text
+LoginVO
+MemberVO
+SellerVO
+Session Attribute
+```
+등에 흩어져 있다면:
+```java
+CustomUserPrincipal
+```
+로 통합합니다.
+예:
+```java
+public class CustomUserPrincipal {
+
+    private long userSn;
+    private String loginId;
+    private Collection<String> roles;
+
+}
+```
+- 여기에 개인정보를 과도하게 넣지 않습니다.
+---
+### Phase 2. Spring Security만 먼저 적용
+이 단계에서는 Token으로 바꾸지 않습니다.
+```text
+JSESSIONID
+    ↓
+HttpSession
+    ↓
+Spring Security
+    ↓
+SecurityContext
+```
+즉 기존 인증 시스템의 책임을:
+```text
+Custom Filter
+Interceptor
+Controller
+```
+에서
+```text
+Spring Security
+```
+로 옮깁니다.
+- 이 단계만 완료해도 상당한 구조 개선이 이루어집니다.
+---
+### Phase 3. 권한체계 변경
+기존:
+```java
+if ("ADMIN".equals(session.getAttribute("role"))) {
+```
+제거.
+대신:
+```java
+@PreAuthorize("hasRole('ADMIN')")
+```
+- 또는 URL authorization 정책으로 이전합니다.
+---
+### Phase 4. API Token화
+예:
+```text
+/api/**
+```
+부터:
+```http
+Authorization: Bearer ...
+```
+를 적용합니다.
+```text
+/api/**
+ → STATELESS
+
+기존 *.do / JSP
+ → Session
+```
+- 으로 일정 기간 공존할 수 있습니다.
+---
+## 20. 이 Hybrid 방식이 현재 시스템에 특히 안전
+```text
+                Spring Security
+                       │
+             ┌─────────┴──────────┐
+             │                    │
+        Web MVC/JSP             REST API
+             │                    │
+          Session                JWT
+             │                    │
+          JSESSIONID      Authorization Bearer
+```
+이렇게 하면 기존 수백 개의 JSP/Controller를 한 번에 변경하지 않아도 됩니다.
+그 이후 실제 필요성이 있다면:
+```text
+Web Session
+    ↓
+Token Cookie
+```
+- 로 변경할 수 있습니다.
+---
+## 21. 완전 Token화 시 반드시 결정해야 하는 사항
+설계 단계에서 최소 다음 15개를 결정해야 합니다.
+
+| 항목 | 결정 필요 |
+|---|---|
+| Access Token 종류 | JWT/Opaque |
+| Token Signing | RSA/EC 등 |
+| Private Key 관리 | 필수 |
+| Key Rotation | 필수 |
+| Access Token TTL | 필수 |
+| Refresh Token TTL | 필수 |
+| Refresh Rotation | 권장 |
+| Refresh 저장소 | Redis/DB |
+| Logout 정책 | 필수 |
+| Token Revocation | 필수 |
+| 중복로그인 정책 | 필수 |
+| Client Token 저장위치 | 필수 |
+| CSRF 정책 | 필수 |
+| XSS 대응 | 필수 |
+| WAS 간 상태공유 | 필수 |
+
+추가로 JWT 검증에는 최소:
+```text
+signature
+exp
+nbf
+iss
+aud
+```
+- 검증 정책을 명확히 하는 것이 좋습니다.
+---
+## 22. `JWT vs Opaque Token`도 먼저 선택해야 함
+| 구분 | JWT | Opaque Token |
+|---|---|---|
+| Token 자체 정보 | 있음 | 없음 |
+| WAS 독립 검증 | 가능 | 일반적으로 불가 |
+| 중앙 저장소 | 없어도 가능 | 일반적으로 필요 |
+| 즉시 Revocation | 불리 | 유리 |
+| 성능 | 좋음 | 중앙 조회 영향 |
+| Stateless | 가능 | Stateful |
+| 구현 난이도 | 중 | 중 |
+| 커머스 로그인 제어 | 별도 보완 필요 | 유리 |
+- Spring Security는 둘 다 Resource Server 방식으로 지원하며, Opaque Token은 Introspection Endpoint 또는 backing store 등을 통해 유효성을 판단할 수 있습니다. 
+---
+## 23. 현재 26_KTR 환경에 대한 권장안
+제가 현재 구조라면 다음 순서로 진행하겠습니다.
+```text
+[1]
+Spring Security 도입
+↓
+기존 HttpSession 유지
+
+[2]
+SecurityContext를 인증정보의 기준으로 변경
+↓
+Controller/Interceptor에서
+session 직접 조회 제거
+
+[3]
+Session Attribute 전수조사
+↓
+인증정보 / 업무상태 분리
+
+[4]
+/api/** Token 적용
+↓
+JWT Access Token
+
+[5]
+Refresh Token 도입
+↓
+초기에는 MariaDB 사용 가능
+
+[6]
+중복로그인/강제로그아웃/다중WAS 요구 분석
+
+[7]
+필요하면 Redis 도입
+↓
+Refresh Token
+Token Version
+Revocation
+중복로그인 제어
+
+[8]
+안정화 후
+JSP Web 영역까지 Token화 여부 재판단
+```
+### 제가 특히 권장하지 않는 방식
+```text
+기존 Session 기능 전체
+        ↓
+JWT Claim으로 전부 이전
+
++
+LocalStorage에 JWT 저장
+
++
+Access/Refresh Token 모두 장기 TTL
+
++
+Logout 시 Client Token 삭제만 수행
+```
+이것은 커머스 시스템에서 보안과 운영 양쪽 모두 문제가 생기기 쉬운 구조입니다.
+## 최종 판단
+현재 시스템에서는 **`Spring Security 도입 = Token 전환`으로 볼 필요가 없습니다.**
+오히려 다음이 더 안전합니다.
+```text
+1. 인증/인가 Framework
+   → Spring Security
+
+2. 인증 상태 저장
+   → 초기 HttpSession
+
+3. API 인증
+   → JWT Access Token
+
+4. Refresh / 중복로그인 / 강제폐기
+   → Redis 또는 MariaDB
+
+5. 최종적으로 Session 제거 여부 결정
+```
+Redis에 대한 결론도 명확합니다.
+
+> **JWT Token을 사용하기 위해 Redis가 필수인 것은 아닙니다.**
+>
+> 그러나 현재 요구사항에 있는 **중복로그인 방지, 기존 로그인 즉시 폐기, 2 WAS간 로그인 상태 일관성, 강제 로그아웃**까지 Token 환경에서 동일하게 구현하려면 Redis 또는 MariaDB 같은 중앙 상태 저장소가 사실상 필요합니다.
+그리고 이 경우에도 **Access Token 전체를 Redis에 저장하는 방식보다는 `Access JWT = Stateless`, `Refresh/Revoke/LoginVersion = Stateful`로 분리하는 구조가 현재 시스템에는 가장 적합**하다고 판단합니다.
