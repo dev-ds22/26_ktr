@@ -1,0 +1,204 @@
+{
+  "recentFiles": [
+    {
+      "basename": "세션 쿠키 환경에 Spring Security 만 도입 검토",
+      "path": "세션 쿠키 환경에 Spring Security 만 도입 검토.md"
+    },
+    {
+      "basename": "git cherry pick",
+      "path": "git cherry pick.md"
+    },
+    {
+      "basename": "쿠키세션 방식을 JWT 토큰 방식으로 전환 고려 사항",
+      "path": "쿠키세션 방식을 JWT 토큰 방식으로 전환 고려 사항.md"
+    },
+    {
+      "basename": "PowerShell - js jsp에서 특정 URL 호출 파일과 라인 취득",
+      "path": "PowerShell - js jsp에서 특정 URL 호출 파일과 라인 취득.md"
+    },
+    {
+      "basename": "Controller Transaction 수정2",
+      "path": "Controller Transaction 수정2.md"
+    },
+    {
+      "basename": "VSCode 에서 Web Project 개발",
+      "path": "VSCode 에서 Web Project 개발.md"
+    },
+    {
+      "basename": "VSCode 에 PMD 설치",
+      "path": "VSCode 에 PMD 설치.md"
+    },
+    {
+      "basename": "Transaction 개선 2",
+      "path": "Transaction 개선 2.md"
+    },
+    {
+      "basename": "Transaction 개선 1",
+      "path": "Transaction 개선 1.md"
+    },
+    {
+      "basename": "Inicis 연계 개선안 2",
+      "path": "Inicis 연계 개선안 2.md"
+    },
+    {
+      "basename": "MariaDB 10.6 특징과 실무",
+      "path": "MariaDB 10.6 특징과 실무.md"
+    },
+    {
+      "basename": "Inicis 연계 개선안",
+      "path": "Inicis 연계 개선안.md"
+    },
+    {
+      "basename": "중복로그인 방지 - 폐기된 세션 고지 추가",
+      "path": "중복로그인 방지 - 폐기된 세션 고지 추가.md"
+    },
+    {
+      "basename": "의료케어 보고서 초안",
+      "path": "의료케어 보고서 초안.md"
+    },
+    {
+      "basename": "git feature에 commit 된 소스코드 원복",
+      "path": "git feature에 commit 된 소스코드 원복.md"
+    },
+    {
+      "basename": "중복로그인 방지 최종 소스",
+      "path": "중복로그인 방지 최종 소스.md"
+    },
+    {
+      "basename": "CommandDispatcher 이용한 중복 로그인 방지",
+      "path": "CommandDispatcher 이용한 중복 로그인 방지.md"
+    },
+    {
+      "basename": "CommandDispacher",
+      "path": "CommandDispacher.md"
+    },
+    {
+      "basename": "L4_Round Robin_IP Hash 에서의 중복 로그인 방지",
+      "path": "L4_Round Robin_IP Hash 에서의 중복 로그인 방지.md"
+    },
+    {
+      "basename": "JBOSS에서 JNDI 사용",
+      "path": "JBOSS에서 JNDI 사용.md"
+    },
+    {
+      "basename": "중복 로그인_Replicated cache 사용",
+      "path": "중복 로그인_Replicated cache 사용.md"
+    },
+    {
+      "basename": "중복 로그인 방지",
+      "path": "중복 로그인 방지.md"
+    },
+    {
+      "basename": "JBOSS 세션 클러스터링",
+      "path": "JBOSS 세션 클러스터링.md"
+    },
+    {
+      "basename": "GTM 사용법2",
+      "path": "GTM 사용법2.md"
+    },
+    {
+      "basename": "Invest San Il Electrics",
+      "path": "Invest San Il Electrics.md"
+    },
+    {
+      "basename": "2026-08-06-note_Invest_SiliconII",
+      "path": "2026-08-06-note_Invest_SiliconII.md"
+    },
+    {
+      "basename": "2026-08-06-note_Invest_pamarresearch",
+      "path": "2026-08-06-note_Invest_pamarresearch.md"
+    },
+    {
+      "basename": "invest_simulation_sanil_electrocs",
+      "path": "invest_simulation_sanil_electrocs.png"
+    },
+    {
+      "basename": "JSON-LD",
+      "path": "JSON-LD.md"
+    },
+    {
+      "basename": "OG태그 - SEO 관련",
+      "path": "OG태그 - SEO 관련.md"
+    },
+    {
+      "basename": "AES256 암호화",
+      "path": "AES256 암호화.md"
+    },
+    {
+      "basename": "GA4 Data Studio",
+      "path": "GA4 Data Studio.md"
+    },
+    {
+      "basename": "GTM 사용법 1",
+      "path": "GTM 사용법 1.md"
+    },
+    {
+      "basename": "안드로이드 개발 환경 구축",
+      "path": "안드로이드 개발 환경 구축.md"
+    },
+    {
+      "basename": "Drawing 2026-07-30 10.04.24.excalidraw",
+      "path": "Excalidraw/Drawing 2026-07-30 10.04.24.excalidraw.md"
+    },
+    {
+      "basename": "GSC 상품유입 크롤링",
+      "path": "GSC 상품유입 크롤링.md"
+    },
+    {
+      "basename": "Driven 제안 분석",
+      "path": "Driven 제안 분석.md"
+    },
+    {
+      "basename": "Full GC 모니터링",
+      "path": "Full GC 모니터링.md"
+    },
+    {
+      "basename": "jstat jcmd",
+      "path": "jstat jcmd.md"
+    },
+    {
+      "basename": "GTM 상품 상세 적용",
+      "path": "GTM 상품 상세 적용.md"
+    },
+    {
+      "basename": "신버전 Java, Jenkins 병행 설치법",
+      "path": "신버전 Java, Jenkins 병행 설치법.md"
+    },
+    {
+      "basename": "Jenkin 플러그인 및 재설치",
+      "path": "Jenkin 플러그인 및 재설치.md"
+    },
+    {
+      "basename": "Socket 관련 소스 리팩토링",
+      "path": "Socket 관련 소스 리팩토링.md"
+    },
+    {
+      "basename": "Gemini 스크립트",
+      "path": "Gemini 스크립트.md"
+    },
+    {
+      "basename": "OkHttpClient 설정",
+      "path": "OkHttpClient 설정.md"
+    },
+    {
+      "basename": "GA_GTM_GSC 관계",
+      "path": "GA_GTM_GSC 관계.md"
+    },
+    {
+      "basename": "curl 작성",
+      "path": "curl 작성.md"
+    },
+    {
+      "basename": "Driven 미팅 정리본",
+      "path": "Driven 미팅 정리본.md"
+    },
+    {
+      "basename": "드리븐 미팅 준비",
+      "path": "드리븐 미팅 준비.md"
+    }
+  ],
+  "omittedPaths": [],
+  "omittedTags": [],
+  "updateOn": "file-open",
+  "omitBookmarks": false
+}
