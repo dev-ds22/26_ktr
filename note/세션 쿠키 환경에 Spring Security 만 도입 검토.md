@@ -212,7 +212,7 @@ Session Listener
 기존 Session/Cookie 기반 커머스 사이트는 CSRF 공격 대상이 될 수 있습니다.
 예를 들어 로그인 상태에서 공격자가:
 
-```html
+```text
 <form action="https://shop/order/cancel.do" method="post">
 ```
 
@@ -221,7 +221,7 @@ Spring Security의 `CsrfFilter`는 Synchronizer Token Pattern을 사용해 상�
 ### 하지만 도입 시 가장 많이 장애가 발생하는 부분이기도 함
 
 기존:
-```html
+```text
 <form method="post"
       action="/mypage/update.do">
 ```
@@ -233,7 +233,7 @@ Spring Security의 `CsrfFilter`는 Synchronizer Token Pattern을 사용해 상�
 ```
 이 발생할 수 있습니다.
 Form에:
-```html
+```text
 <input type="hidden"
        name="${_csrf.parameterName}"
        value="${_csrf.token}">
@@ -361,6 +361,7 @@ public String myPage(
     ...
 }
 ```
+
 이렇게 하면:
 ```text
 HttpServletRequest
@@ -376,16 +377,16 @@ session.setAttribute(...)
 를 전부 없앨 필요는 없습니다.
 다음과 같이 분리하면 됩니다.
 
-| Session 정보 | 처리 |
-|---|---|
-| 로그인 여부 | Spring Security |
-| 사용자 ID | Principal |
-| 사용자 권한 | `GrantedAuthority` |
-| 인증 상태 | `SecurityContext` |
-| 업무상 임시정보 | 기존 Session 사용 가능 |
-| Wizard 진행정보 | 기존 Session 가능 |
-| 화면 임시조건 | 필요하면 Session |
-| 장바구니 | 현재 설계에 따라 Session/DB |
+| Session 정보  | 처리                   |
+| ----------- | -------------------- |
+| 로그인 여부      | Spring Security      |
+| 사용자 ID      | Principal            |
+| 사용자 권한      | `GrantedAuthority`   |
+| 인증 상태       | `SecurityContext`    |
+| 업무상 임시정보    | 기존 Session 사용 가능     |
+| Wizard 진행정보 | 기존 Session 가능        |
+| 화면 임시조건     | 필요하면 Session         |
+| 장바구니        | 현재 설계에 따라 Session/DB |
 
 즉:
 ```text
@@ -599,16 +600,16 @@ LoginInterceptor
 등과 순서를 명확히 해야 합니다.
 권장 책임 분리는:
 
-| 기능 | 담당 |
-|---|---|
-| 인증 여부 | Spring Security |
-| 권한 | Spring Security |
-| CSRF | Spring Security |
-| Session fixation | Spring Security |
-| 로그인 실패 | Spring Security |
-| 업무 공통처리 | Interceptor |
-| 중복로그인 | 기존 로직 → 향후 통합 |
-| Encoding/CORS 등 | Filter/Security 정책에 따라 |
+| 기능               | 담당                     |
+| ---------------- | ---------------------- |
+| 인증 여부            | Spring Security        |
+| 권한               | Spring Security        |
+| CSRF             | Spring Security        |
+| Session fixation | Spring Security        |
+| 로그인 실패           | Spring Security        |
+| 업무 공통처리          | Interceptor            |
+| 중복로그인            | 기존 로직 → 향후 통합          |
+| Encoding/CORS 등  | Filter/Security 정책에 따라 |
 
 특히 다음 같은 중복 코드는 제거 대상입니다.
 ```text
@@ -769,44 +770,45 @@ URL Rewriting 금지
 중요합니다.
 Spring Security를 도입했다고 다음이 자동 해결되지는 않습니다.
 
-| 보안 문제 | 자동 해결 |
-|---|---:|
-| 인증 | O |
-| 인가 | O |
-| Session Fixation | O |
-| CSRF | O |
-| 비밀번호 Hash API | O |
-| XSS | X |
-| SQL Injection | X |
-| 파일 업로드 취약점 | X |
-| IDOR | 부분적 |
-| 업무 권한 오류 | 설계 필요 |
-| Cookie 정책 전체 | 별도 설정 |
-| DB 암호화 | X |
-| 개인정보 Masking | X |
-| 중복로그인 다중 WAS | 별도 설계 필요 |
+| 보안 문제            |    자동 해결 |
+| ---------------- | -------: |
+| 인증               |        O |
+| 인가               |        O |
+| Session Fixation |        O |
+| CSRF             |        O |
+| 비밀번호 Hash API    |        O |
+| XSS              |        X |
+| SQL Injection    |        X |
+| 파일 업로드 취약점       |        X |
+| IDOR             |      부분적 |
+| 업무 권한 오류         |    설계 필요 |
+| Cookie 정책 전체     |    별도 설정 |
+| DB 암호화           |        X |
+| 개인정보 Masking     |        X |
+| 중복로그인 다중 WAS     | 별도 설계 필요 |
 
 ---
 ## 22. 장점/단점 최종 비교
-| 항목 | 장점 | 단점/주의 |
-|---|---|---|
-| 인증 | 표준 구조 | 기존 로그인 대규모 수정 |
-| 권한 | 중앙 관리 | 권한 Matrix 설계 필요 |
-| Session | 보안 기능 강화 | 기존 Session Manager 충돌 |
-| Session Fixation | 기본 보호 | Session ID 기반 로직 점검 |
-| CSRF | 강력한 보호 | 기존 POST/AJAX 수정 |
-| AJAX | Handler 표준화 가능 | 기본 Redirect 그대로 쓰면 문제 |
-| 비밀번호 | Encoder 표준 | 기존 Hash Migration 필요 |
-| Logout | 표준화 | 기존 로그아웃 부가기능 통합 |
-| 중복로그인 | 기본 기능 있음 | Multi-WAS는 별도 고려 |
-| 유지보수 | 크게 개선 | 초기 Migration 비용 |
-| Redis | 불필요 | 분산 SessionRegistry 필요 시 검토 |
-| Token | 불필요 | Stateless 장점은 없음 |
+| 항목               | 장점             | 단점/주의                      |
+| ---------------- | -------------- | -------------------------- |
+| 인증               | 표준 구조          | 기존 로그인 대규모 수정              |
+| 권한               | 중앙 관리          | 권한 Matrix 설계 필요            |
+| Session          | 보안 기능 강화       | 기존 Session Manager 충돌      |
+| Session Fixation | 기본 보호          | Session ID 기반 로직 점검        |
+| CSRF             | 강력한 보호         | 기존 POST/AJAX 수정            |
+| AJAX             | Handler 표준화 가능 | 기본 Redirect 그대로 쓰면 문제      |
+| 비밀번호             | Encoder 표준     | 기존 Hash Migration 필요       |
+| Logout           | 표준화            | 기존 로그아웃 부가기능 통합            |
+| 중복로그인            | 기본 기능 있음       | Multi-WAS는 별도 고려           |
+| 유지보수             | 크게 개선          | 초기 Migration 비용            |
+| Redis            | 불필요            | 분산 SessionRegistry 필요 시 검토 |
+| Token            | 불필요            | Stateless 장점은 없음           |
 
 ---
 ## 23. Spring 5.3에서 사용할 Spring Security 버전
 여기에는 2026년 현재 중요한 문제가 있습니다.
 Spring Security 5.x를 유지해야 한다면 **5.8.x가 사실상 최종 5.x 계열**이고, Spring 측도 5.x에 머무는 경우 5.8로 업데이트하는 것을 권장했습니다. 
+
 Spring Security 6은:
 ```text
 JDK 17+
@@ -814,6 +816,7 @@ jakarta.servlet.*
 Spring Framework 6
 ```
 전환을 전제로 하기 때문에 현재 Spring 5.3/JDK 11 기반 시스템에 그대로 도입할 대상이 아닙니다. 
+
 그러나 중요한 점:
 > **Spring Framework 5.3.x와 Spring Security 5.8.x의 Open Source Support는 2024-08-31 종료되었습니다.** 
 2026년에도 상용 Spring Enterprise에서는 Spring Security 5.8 계열의 보안 패치가 계속 제공되고 있으며, 예를 들어 2026년 상용 5.8.x 릴리스도 존재합니다. 
@@ -829,6 +832,7 @@ Spring Security 5.8.x
 또는
 ③ 중장기 Spring 6/JDK17 Migration 계획
 ```
+
 까지 같이 결정해야 합니다.
 - 이 부분은 보안 Framework 신규 도입 심사에서 매우 중요합니다.
 ---
@@ -870,23 +874,23 @@ Token Store
 ## 25. 현재 시스템에서 가장 먼저 확인해야 할 항목
 우선순위를 매기면 다음과 같습니다.
 
-| 우선순위 | 점검사항 | 중요도 |
-|---:|---|---:|
-| 1 | 현재 로그인 성공 시 Session 생성/Attribute | ★★★★★ |
-| 2 | `getSession()` / `getAttribute()` 전체 조사 | ★★★★★ |
-| 3 | 기존 인증 Filter/Interceptor | ★★★★★ |
-| 4 | 중복로그인 관련 Filter/Listener/Manager | ★★★★★ |
-| 5 | Session ID 직접 저장/비교 코드 | ★★★★★ |
-| 6 | AJAX 인증 만료 처리 | ★★★★★ |
-| 7 | POST/AJAX CSRF 영향 | ★★★★★ |
-| 8 | WAS Session clustering | ★★★★★ |
-| 9 | Principal Serializable 여부 | ★★★★☆ |
-| 10 | 로그인/로그아웃 URL | ★★★★☆ |
-| 11 | 권한 Role 구조 | ★★★★☆ |
-| 12 | 비밀번호 Hash 방식 | ★★★★☆ |
-| 13 | Cookie Secure/HttpOnly/SameSite | ★★★★☆ |
-| 14 | Static resource 제외 정책 | ★★★☆☆ |
-| 15 | Error/Exception page | ★★★☆☆ |
+| 우선순위 | 점검사항                                    |   중요도 |
+| ---: | --------------------------------------- | ----: |
+|    1 | 현재 로그인 성공 시 Session 생성/Attribute        | ★★★★★ |
+|    2 | `getSession()` / `getAttribute()` 전체 조사 | ★★★★★ |
+|    3 | 기존 인증 Filter/Interceptor                | ★★★★★ |
+|    4 | 중복로그인 관련 Filter/Listener/Manager        | ★★★★★ |
+|    5 | Session ID 직접 저장/비교 코드                  | ★★★★★ |
+|    6 | AJAX 인증 만료 처리                           | ★★★★★ |
+|    7 | POST/AJAX CSRF 영향                       | ★★★★★ |
+|    8 | WAS Session clustering                  | ★★★★★ |
+|    9 | Principal Serializable 여부               | ★★★★☆ |
+|   10 | 로그인/로그아웃 URL                            | ★★★★☆ |
+|   11 | 권한 Role 구조                              | ★★★★☆ |
+|   12 | 비밀번호 Hash 방식                            | ★★★★☆ |
+|   13 | Cookie Secure/HttpOnly/SameSite         | ★★★★☆ |
+|   14 | Static resource 제외 정책                   | ★★★☆☆ |
+|   15 | Error/Exception page                    | ★★★☆☆ |
 
 ---
 ## 26. 실제 도입 절차 권장안
