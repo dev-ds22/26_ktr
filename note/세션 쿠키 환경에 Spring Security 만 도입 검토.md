@@ -41,8 +41,9 @@ HttpSession
 현재와 같은 JSP/Tiles 기반 커머스 시스템이라면 저는 **Token 전환보다 이 방식을 우선적으로 권장**합니다.
 Spring Security는 인증정보를 `SecurityContextHolder → SecurityContext → Authentication` 모델로 표준화하며, Spring Security 5에서는 기본적으로 이를 HttpSession에 저장하여 다음 요청에서 복원할 수 있습니다. 
 ---
+
 ## 2. 현재 구조와 도입 후 구조 비교
-## 현재
+### 현재
 ```text
 Request
    ↓
@@ -75,7 +76,8 @@ if (!"ADMIN".equals(loginVO.getRole())) {
     ...
 }
 ```
-## Spring Security 도입 후
+
+### Spring Security 도입 후
 ```text
 Request
    ↓
@@ -113,8 +115,9 @@ SecurityContext / Authentication
 ```
 - 으로 이동합니다.
 ---
+
 ## 3. 가장 큰 도입 효과
-### 3.1 인증 처리 표준화
+### 인증 처리 표준화
 현재 자체 로그인 로직이:
 ```text
 LoginController
@@ -125,7 +128,10 @@ Interceptor
 Listener
 중복로그인 처리
 ```
-등에 분산되어 있다면 Spring Security 도입 후:
+
+등에 분산되어 있다면 
+
+Spring Security 도입 후:
 ```text
 AuthenticationFilter
         ↓
@@ -156,6 +162,7 @@ Spring Security는 `AuthenticationManager`, `ProviderManager`, `AuthenticationPr
 | 동시 Session       | 직접 구현          | 기본 기능 존재              |
 
 ---
+
 ## 4. Session Fixation 공격 대응이 크게 개선됨
 
 Spring Security의 Session 기반 인증을 사용하는 중요한 이유 중 하나입니다.
@@ -163,6 +170,7 @@ Spring Security의 Session 기반 인증을 사용하는 중요한 이유 중 �
 ```text
 JSESSIONID=A
 ```
+
 로그인 성공 후에도:
 ```text
 JSESSIONID=A
@@ -174,6 +182,7 @@ Servlet 3.1 이상에서는 기본적으로:
 request.changeSessionId();
 ```
 기반 `changeSessionId` 전략을 사용할 수 있습니다. 
+
 즉:
 ```text
 로그인 전
@@ -190,6 +199,7 @@ JSESSIONID=BBB
 Map<String, LoginUser> sessions;
 ```
 처럼 **Session ID를 Key로 직접 관리**한다면 매우 중요합니다.
+
 Spring Security 로그인 성공:
 ```text
 Session ID
@@ -207,6 +217,7 @@ Session Listener
 와 충돌할 수 있습니다.
 - 따라서 **Spring Security 도입 전에 반드시 검증해야 할 최우선 항목**입니다.
 ---
+
 ## 5. CSRF 보호 효과
 
 기존 Session/Cookie 기반 커머스 사이트는 CSRF 공격 대상이 될 수 있습니다.
@@ -259,6 +270,7 @@ http.csrf().disable();
 를 가장 먼저 넣는 방식은 권장하지 않습니다.
 - 기존 POST/PUT/DELETE 호출을 조사하고 CSRF 적용 대상을 설계하는 것이 맞습니다.
 ---
+
 ## 6. URL 권한 관리 효과
 
 기존:
@@ -274,6 +286,7 @@ if (!"ADMIN".equals(role)) {
 }
 ```
 를 Controller마다 작성할 필요가 줄어듭니다.
+
 예:
 ```java
 http
@@ -299,6 +312,7 @@ ROLE_ADMIN 필수
 ```
 - 같은 정책을 중앙에서 관리할 수 있습니다.
 ---
+
 ## 7. Method 단위 권한 관리
 
 Service 또는 Controller에서:
@@ -308,6 +322,7 @@ public void updateMember(...) {
 }
 ```
 처럼 권한을 적용할 수도 있습니다.
+
 특히 URL만으로 권한을 결정하기 어려운 경우:
 ```text
 URL
@@ -322,6 +337,7 @@ URL
 권한이 다르다면 Method Security가 유용합니다.
 - 다만 기존 대규모 시스템에서는 처음부터 URL Security와 Method Security를 동시에 대량 도입하지 않는 것을 권장합니다.
 ---
+
 ## 8. 로그인 사용자 접근 방식 개선
 기존:
 ```java
@@ -362,6 +378,7 @@ public String myPage(
 }
 ```
 
+
 이렇게 하면:
 ```text
 HttpServletRequest
@@ -369,6 +386,7 @@ HttpSession
 ```
 - 에 대한 Application Layer의 직접 의존성이 줄어듭니다.
 ---
+
 ## 9. 기존 Session Attribute를 모두 제거할 필요는 없음
 Spring Security 도입했다고:
 ```java
@@ -398,6 +416,7 @@ session.setAttribute(...)
 ```
 - 가 현실적입니다.
 ---
+
 ## 10. 비밀번호 관리 개선
 Spring Security의 `PasswordEncoder`를 사용할 수 있습니다.
 5.8 계열은:
@@ -409,6 +428,7 @@ Argon2
 DelegatingPasswordEncoder
 ```
 등을 지원하고, `DelegatingPasswordEncoder`는 기존 암호 방식과 신규 암호 방식을 단계적으로 공존시키는 데 유용합니다. 
+
 예:
 ```text
 기존
@@ -430,6 +450,7 @@ SHA-256(password)
 같은 단계적 Migration이 가능합니다.
 - 단, **현재 DB 비밀번호 암호화 방식을 먼저 조사해야 합니다.**
 ---
+
 ## 11. 중복 로그인 제어
 Spring Security 자체에도 동시 Session 제어 기능이 있습니다.
 
@@ -454,7 +475,8 @@ Spring Security는 `SessionRegistry`, `ConcurrentSessionControlAuthenticationStr
 하지만 현재 시스템에서는 **이 기능을 바로 사용하는 것을 권장하지 않습니다.**
 - 이유가 중요합니다.
 ---
-## 12. 2 WAS 환경에서 Spring Security 기본 SessionRegistry의 한계
+
+## 12. 2-WAS 환경에서 Spring Security 기본 SessionRegistry의 한계
 Spring Security 기본:
 ```java
 SessionRegistryImpl
@@ -507,6 +529,7 @@ Spring Security 인증
 를 통합한 뒤 별도로 구조 개선을 판단하는 것이 좋습니다.
 - Redis는 이 단계에서 필수가 아닙니다.
 ---
+
 ## 13. `HttpSessionEventPublisher` 충돌 확인
 Spring Security의 Concurrent Session 제어를 사용하면 Session 생성/소멸 이벤트를 받기 위해:
 ```java
@@ -532,6 +555,7 @@ Session Map 중복 삭제?
 중복로그인 상태 오류?
 ```
 ---
+
 ## 14. AJAX 처리는 반드시 별도 설계
 현재 시스템에서 특히 중요합니다.
 기존:
@@ -545,6 +569,7 @@ Filter
 sendRedirect("/login.do")
 ```
 방식은 이미 문제가 될 수 있습니다.
+
 Spring Security 기본 인증 실패 역시 브라우저 페이지 요청에는 Redirect가 적절하지만 AJAX에서는:
 ```text
 302
@@ -554,6 +579,7 @@ login.jsp HTML
 AJAX success/error 처리 혼란
 ```
 이 발생할 수 있습니다.
+
 따라서 요청 유형별:
 ```text
 일반 Page Request
@@ -566,6 +592,7 @@ AJAX / JSON Request
 → 403 JSON
 ```
 을 구분해야 합니다.
+
 예:
 ```text
 AuthenticationEntryPoint
@@ -576,6 +603,7 @@ LogoutSuccessHandler
 ```
 - 를 프로젝트 규칙에 맞게 구현하는 것이 좋습니다.
 ---
+
 ## 15. Filter와 Interceptor 순서가 매우 중요
 Spring Security는 기본적으로:
 ```text
@@ -590,6 +618,7 @@ Spring MVC Interceptor
 Controller
 ```
 구조입니다.
+
 따라서 기존:
 ```text
 DuplicateLoginSessionFilter
@@ -598,6 +627,7 @@ WebContentInterceptor
 LoginInterceptor
 ```
 등과 순서를 명확히 해야 합니다.
+
 권장 책임 분리는:
 
 | 기능               | 담당                     |
@@ -623,6 +653,7 @@ Interceptor
 ```
 - 두 시스템이 로그인 여부를 각각 판단하면 장애 원인이 됩니다.
 ---
+
 ## 16. Session 생성 정책 확인
 Spring Security를 붙이면:
 ```text
@@ -649,6 +680,7 @@ WebContentInterceptor
 ```
 - 가 로그인 전부터 Session을 생성하고 있는지 확인해야 합니다.
 ---
+
 ## 17. WAS Session Clustering 영향
 현재처럼 Session clustering을 사용한다면 Spring Security 도입 후 Session에:
 ```text
@@ -664,6 +696,7 @@ Principal
 implements Serializable
 ```
 로 만드는 것이 안전합니다.
+
 그리고 Principal 내부에 다음을 넣지 않는 것이 좋습니다.
 ```java
 @Service
@@ -673,6 +706,7 @@ HttpServletRequest
 HttpSession
 대용량 VO Graph
 ```
+
 권장:
 ```java
 public class LoginUserPrincipal
@@ -688,6 +722,7 @@ public class LoginUserPrincipal
 ```
 - 클러스터 Session replication 환경에서는 **Principal 크기가 커질수록 Session replication 비용도 증가**합니다.
 ---
+
 ## 18. Session에 회원 VO 전체를 넣는 구조도 개선 기회
 현재:
 ```java
@@ -716,6 +751,7 @@ memberType
 등은 필요 시 조회합니다.
 - 특히 WAS 2대 Session replication에서는 효과가 큽니다.
 ---
+
 ## 19. Logout 처리 확인
 현재:
 ```java
@@ -734,6 +770,7 @@ Cookie 처리
 LogoutSuccessHandler
 ```
 로 통합할 수 있습니다.
+
 단 기존:
 ```text
 로그인 사용자 Map 제거
@@ -744,6 +781,7 @@ SSO Logout
 ```
 - 이 있다면 `LogoutHandler`에 통합하거나 기존 Service를 연결해야 합니다.
 ---
+
 ## 20. Cookie 보안은 Spring Security 도입만으로 끝나지 않음
 Spring Security를 도입했다고:
 ```text
@@ -766,6 +804,7 @@ URL Rewriting 금지
 ```
 - Nginx/WAS 설정과 같이 확인해야 합니다.
 ---
+
 ## 21. Spring Security가 해결하지 않는 것
 중요합니다.
 Spring Security를 도입했다고 다음이 자동 해결되지는 않습니다.
@@ -788,6 +827,7 @@ Spring Security를 도입했다고 다음이 자동 해결되지는 않습니다
 | 중복로그인 다중 WAS     | 별도 설계 필요 |
 
 ---
+
 ## 22. 장점/단점 최종 비교
 | 항목               | 장점             | 단점/주의                      |
 | ---------------- | -------------- | -------------------------- |
@@ -805,6 +845,7 @@ Spring Security를 도입했다고 다음이 자동 해결되지는 않습니다
 | Token            | 불필요            | Stateless 장점은 없음           |
 
 ---
+
 ## 23. Spring 5.3에서 사용할 Spring Security 버전
 여기에는 2026년 현재 중요한 문제가 있습니다.
 Spring Security 5.x를 유지해야 한다면 **5.8.x가 사실상 최종 5.x 계열**이고, Spring 측도 5.x에 머무는 경우 5.8로 업데이트하는 것을 권장했습니다. 
@@ -836,6 +877,7 @@ Spring Security 5.8.x
 까지 같이 결정해야 합니다.
 - 이 부분은 보안 Framework 신규 도입 심사에서 매우 중요합니다.
 ---
+
 ## 24. 신규 Infrastructure는 필요한가?
 이번 조건:
 ```text
@@ -844,7 +886,7 @@ HttpSession 유지
 JSESSIONID 유지
 ```
 라면:
-## Redis 필요 없음
+### Redis 필요 없음
 ```text
 Browser
  ↓
@@ -855,6 +897,7 @@ WAS Session
 Spring SecurityContext
 ```
 만으로 가능합니다.
+
 추가로 필요한 것은 Library와 Configuration입니다.
 ```text
 spring-security-core
@@ -862,6 +905,7 @@ spring-security-web
 spring-security-config
 ```
 등입니다.
+
 따라서:
 ```text
 Redis
@@ -871,6 +915,7 @@ Token Store
 ```
 - 등의 신규 Infrastructure는 **Spring Security 도입 자체에는 전혀 필요하지 않습니다.**
 ---
+
 ## 25. 현재 시스템에서 가장 먼저 확인해야 할 항목
 우선순위를 매기면 다음과 같습니다.
 
@@ -893,6 +938,7 @@ Token Store
 |   15 | Error/Exception page                    | ★★★☆☆ |
 
 ---
+
 ## 26. 실제 도입 절차 권장안
 저라면 현재 프로젝트에서는 **Big Bang 방식으로 전환하지 않습니다.**
 ### Phase 1 — 현황 조사
@@ -914,6 +960,7 @@ logout
 role
 auth
 ```
+
 그리고:
 ```text
 인증
@@ -923,6 +970,7 @@ auth
 기타
 ```
 로 분류합니다.
+
 ### Phase 2 — Spring Security Framework만 도입
 ```text
 SecurityFilterChain
@@ -938,6 +986,7 @@ CustomUserPrincipal
 기존 중복로그인
 ```
 을 대규모 제거하지 않습니다.
+
 ### Phase 3 — 인증 기준을 SecurityContext로 변경
 기존:
 ```java
@@ -949,6 +998,7 @@ SecurityContextHolder.getContext()
         .getAuthentication()
 ```
 으로 전환합니다.
+
 ### Phase 4 — URL 권한 중앙화
 ```text
 /mypage/**
@@ -957,6 +1007,7 @@ SecurityContextHolder.getContext()
 /none/**
 ```
 등을 Role Matrix로 작성하고 Security Configuration으로 이전합니다.
+
 ### Phase 5 — CSRF 적용
 ```text
 JSP Form
@@ -967,6 +1018,7 @@ External Callback
 ```
 을 각각 분리합니다.
 특히 결제/PG Callback URL을 일반 CSRF 정책에 무조건 넣으면 외부 연계가 실패할 수 있으므로 정확한 예외 정책이 필요합니다.
+
 ### Phase 6 — Login/Logout Handler 이전
 ```text
 AuthenticationSuccessHandler
@@ -977,6 +1029,7 @@ LogoutHandler
 LogoutSuccessHandler
 ```
 로 표준화합니다.
+
 ### Phase 7 — 기존 인증 Filter/Interceptor 제거
 안정화된 후:
 ```text
@@ -985,6 +1038,7 @@ SessionCheckFilter
 AuthFilter
 ```
 처럼 Spring Security와 중복되는 부분을 제거합니다.
+
 ### Phase 8 — 중복로그인 구조 별도 통합
 마지막으로:
 ```text
@@ -994,6 +1048,7 @@ Spring Security Concurrent Session
 ```
 - 을 비교하고 하나의 구조로 통합합니다.
 ---
+
 ## 27. 권장 Target Architecture
 현재 시스템이라면 최종적으로 다음 구조를 권장합니다.
 ```text
@@ -1044,23 +1099,24 @@ LocalStorage X
 ```
 - 입니다.
 ---
+
 ## 28. 현재 프로젝트 기준 최종 평가
-| 평가항목 | 판단 |
-|---|---|
-| Spring Security 도입 필요성 | **높음** |
-| Token 전환 필요성 | 현재 단계에서는 낮음 |
-| 기존 Session 유지 | **가능 / 권장** |
-| 기존 JSESSIONID 유지 | **가능** |
-| Redis 추가 | 불필요 |
-| 보안 개선 효과 | **높음** |
-| 개발 구조 개선 | **높음** |
-| 초기 영향 범위 | 중~높음 |
-| JSP/Tiles 호환성 | 좋음 |
-| AJAX 수정 가능성 | 높음 |
-| 중복로그인 영향 | **매우 높음** |
-| Session Cluster 영향 | 검증 필수 |
-| Spring Security 5.8 OSS 지원 | **종료** |
-| 장기 Upgrade 계획 | 필요 |
+| 평가항목                       | 판단          |
+| -------------------------- | ----------- |
+| Spring Security 도입 필요성     | **높음**      |
+| Token 전환 필요성               | 현재 단계에서는 낮음 |
+| 기존 Session 유지              | **가능 / 권장** |
+| 기존 JSESSIONID 유지           | **가능**      |
+| Redis 추가                   | 불필요         |
+| 보안 개선 효과                   | **높음**      |
+| 개발 구조 개선                   | **높음**      |
+| 초기 영향 범위                   | 중~높음        |
+| JSP/Tiles 호환성              | 좋음          |
+| AJAX 수정 가능성                | 높음          |
+| 중복로그인 영향                   | **매우 높음**   |
+| Session Cluster 영향         | 검증 필수       |
+| Spring Security 5.8 OSS 지원 | **종료**      |
+| 장기 Upgrade 계획              | 필요          |
 
 ## 최종적으로 권장하는 방향
 
@@ -1083,9 +1139,13 @@ JSESSIONID Cookie
 ```
 로 시작하는 것이 가장 합리적입니다.
 
-특히 도입 목적을:
-> `Session을 없애기 위한 것`
-이 아니라
-> **`현재 Filter/Interceptor/Controller에 분산된 인증·인가·Session 보안 로직을 Spring Security라는 하나의 표준 보안 계층으로 통합하는 것`**
-으로 잡는 것이 맞습니다.
-그리고 현재 시스템에서는 **① Session ID 변경과 기존 중복로그인 로직의 충돌, ② AJAX의 302/401/403 처리, ③ CSRF 적용에 따른 기존 POST 호출 장애, ④ 2 WAS Session clustering에서 CustomPrincipal serialization, ⑤ Spring Security 5.8의 보안 패치 정책** 이 다섯 항목이 실제 도입 성패를 좌우할 핵심 점검사항입니다.
+특히 도입 목적을: `Session을 없애기 위한 것` 이 아니라 **`현재 Filter/Interceptor/Controller에 분산된 인증·인가·Session 보안 로직을 Spring Security라는 하나의 표준 보안 계층으로 통합하는 것`** 으로 잡는 것이 맞습니다.
+그리고 현재 시스템에서는 
+
+**① Session ID 변경과 기존 중복로그인 로직의 충돌, 
+② AJAX의 302/401/403 처리, 
+③ CSRF 적용에 따른 기존 POST 호출 장애, 
+④ 2 WAS Session clustering에서 CustomPrincipal serialization, 
+⑤ Spring Security 5.8의 보안 패치 정책** 
+
+이 다섯 항목이 실제 도입 성패를 좌우할 핵심 점검사항입니다.

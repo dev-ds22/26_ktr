@@ -1,5 +1,5 @@
 ## Spring 5.3 커머스 시스템의 `Session → Spring Security + Token` 전환 분석
-### 1. 결론
+## 1. 결론
 현재의
 ```text
 JSESSIONID Cookie
@@ -48,7 +48,9 @@ API 영역부터 Token 적용
 
 - Spring Security는 Session 기반 인증도 공식적으로 지원하며, Token 기반 Resource Server는 JWT와 Opaque Token 모두 지원합니다. JWT의 경우 서명과 `exp`, `nbf`, `iss` 등을 검증하여 `Authentication`을 생성하는 구조입니다. 
 ---
+
 ## 2. 가장 먼저 해야 할 작업: `HttpSession` 사용현황 전수조사
+
 Token으로 변경하면서 가장 많이 발생하는 설계 오류가
 
 > `session에 들어 있던 모든 정보를 JWT에 넣는 것`
@@ -98,6 +100,7 @@ session.invalidate()
 ```
 
 ---
+
 ## 3. Redis는 필수인가?
 ### 결론: 아니다.
 JWT Access Token만 사용하면 Redis 없이도 가능합니다.
@@ -156,6 +159,7 @@ Distributed Cache
 ```
 
 ---
+
 ## 4. JWT와 Redis의 관계
 많이 혼동하는 부분입니다.
 #### 완전 Stateless JWT
@@ -203,6 +207,7 @@ Redis나 DB 검증이 없다면 해당 JWT는:
 
 - 까지 유효할 수 있습니다.
 ---
+
 ## 5. Redis를 사용한 Stateful Token
 반대로 다음처럼 만들 수도 있습니다.
 
@@ -262,6 +267,7 @@ JWT의 Stateless 장점
 
 - 합니다.
 ---
+
 ## 6. 현재 시스템에서는 `Refresh Token` 때문에 Redis가 유용해짐
 
 실무적인 구조는 보통 다음 형태입니다.
@@ -313,6 +319,7 @@ Redis 검증
 ```
 - 이를 `Refresh Token Rotation` 형태로 구현할 수 있습니다.
 ---
+
 ## 7. 현재 커머스 환경에서는 중요한 문제가 하나 있음
 현재 시스템이 SPA가 아니라
 ```text
@@ -361,6 +368,7 @@ Cookie: JSESSIONID=...
 ```
 - 이 차이가 매우 중요합니다.
 ---
+
 ## 8. 그래서 Token을 Cookie에 넣는 구조도 존재
 예:
 ```http
@@ -404,6 +412,7 @@ HttpSession
 ```
 - 구조도 가능합니다.
 ---
+
 ## 9. Token을 Cookie에 저장하면 CSRF를 다시 고려해야 함
 Token이라고 해서 자동으로 CSRF 문제가 없어지는 것이 아닙니다.
 ```text
@@ -427,6 +436,7 @@ Origin/Referer 정책
 ```
 - 을 함께 설계해야 합니다.
 ---
+
 ## 10. LocalStorage JWT는 현재 시스템에는 추천하지 않음
 흔히 사용하는:
 ```javascript
@@ -453,6 +463,7 @@ HttpOnly Cookie
 는 JavaScript에서 읽을 수 없습니다.
 - 그래서 Browser 기반 커머스 사이트에서는 저장 위치를 반드시 보안 설계 단계에서 결정해야 합니다.
 ---
+
 ## 11. 현재 프로젝트에서 가장 중요한 `중복로그인 방지`
 현재 시스템처럼:
 ```text
@@ -514,6 +525,7 @@ Redis = 11
 ```
 - 이 요구사항이 유지된다면 **Redis 또는 동일 역할을 하는 중앙 저장소의 도입 가치가 매우 높습니다.**
 ---
+
 ## 12. Redis가 없다면 MariaDB로도 가능
 현재 MariaDB 10.6을 사용하고 있으므로 초기 단계에서는 별도 Redis 없이 다음처럼 구현할 수도 있습니다.
 ```text
@@ -550,6 +562,7 @@ Access Token은 Stateless
 ```
 - 라면 충분히 현실적인 구조입니다.
 ---
+
 ## 13. Redis가 특히 유리한 경우
 다음 조건이 많으면 Redis를 권장합니다.
 
@@ -566,6 +579,7 @@ Access Token은 Stateless
 
 - 현재처럼 WAS 이중화 환경에서 중복 로그인 및 기존 로그인 폐기까지 요구한다면 Redis가 상당히 합리적인 선택입니다.
 ---
+
 ## 14. 그러나 `모든 Access Token을 Redis에 저장`하는 것은 추천하지 않음
 예:
 ```text
@@ -606,6 +620,7 @@ Revoke/User Version
 
 
 ---
+
 ## 15. 추천 Target Architecture
 현재 시스템을 기준으로 하면 다음 정도가 가장 균형이 좋습니다.
 ```text
@@ -663,6 +678,7 @@ Redis의 User Login Version
 ```
 - 을 활용합니다.
 ---
+
 ## 16. Spring Security 적용 시 기존 코드의 가장 큰 변화
 현재:
 ```java
@@ -704,6 +720,7 @@ SecurityContext
 ```
 - 를 인증의 Single Source of Truth로 만드는 것이 중요합니다.
 ---
+
 ## 17. Spring Security Filter 구조
 Token 방식이라면 개념적으로:
 ```text
@@ -731,6 +748,7 @@ Controller
 ```
 - Spring Security Resource Server는 Bearer Token 인증을 Filter Chain에 통합하고 JWT와 Opaque Token을 모두 공식적으로 지원합니다. 
 ---
+
 ## 18. Spring 5.3 프로젝트의 설정 방식
 Spring Security 5.x 계열을 적용한다면 `WebSecurityConfigurerAdapter` 기반 신규 코드를 만드는 것보다는:
 ```java
@@ -746,6 +764,7 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http)
 `WebSecurityConfigurerAdapter`는 Spring Security 5.8에서도 deprecated 되었으며 `SecurityFilterChain` Bean 방식이 권장됩니다. 
 - 다만 현재 프로젝트가 Spring 5.3/JDK11/eGov/JBoss 기반이므로 **Spring Security 버전은 기존 Spring dependency와 BOM 충돌을 반드시 확인한 후 확정**해야 합니다.
 ---
+
 ## 19. 실제 Migration 절차
 ### Phase 0. 현황 분석
 가장 먼저:
@@ -856,6 +875,7 @@ Authorization: Bearer ...
 ```
 - 으로 일정 기간 공존할 수 있습니다.
 ---
+
 ## 20. 이 Hybrid 방식이 현재 시스템에 특히 안전
 ```text
                 Spring Security
@@ -877,6 +897,7 @@ Token Cookie
 ```
 - 로 변경할 수 있습니다.
 ---
+
 ## 21. 완전 Token화 시 반드시 결정해야 하는 사항
 설계 단계에서 최소 다음 15개를 결정해야 합니다.
 
@@ -908,6 +929,7 @@ aud
 ```
 - 검증 정책을 명확히 하는 것이 좋습니다.
 ---
+
 ## 22. `JWT vs Opaque Token`도 먼저 선택해야 함
 | 구분            | JWT      | Opaque Token |
 | ------------- | -------- | ------------ |
@@ -921,6 +943,7 @@ aud
 | 커머스 로그인 제어    | 별도 보완 필요 | 유리           |
 - Spring Security는 둘 다 Resource Server 방식으로 지원하며, Opaque Token은 Introspection Endpoint 또는 backing store 등을 통해 유효성을 판단할 수 있습니다. 
 ---
+
 ## 23. 현재 26_KTR 환경에 대한 권장안
 제가 현재 구조라면 다음 순서로 진행하겠습니다.
 ```text
@@ -981,6 +1004,8 @@ Access/Refresh Token 모두 장기 TTL
 Logout 시 Client Token 삭제만 수행
 ```
 이것은 커머스 시스템에서 보안과 운영 양쪽 모두 문제가 생기기 쉬운 구조입니다.
+
+---
 ## 최종 판단
 현재 시스템에서는 **`Spring Security 도입 = Token 전환`으로 볼 필요가 없습니다.**
 오히려 다음이 더 안전합니다.
