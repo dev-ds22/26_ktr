@@ -10,7 +10,7 @@ tags:
 toc: false
 toc_sticky: true
 date: "2026-09-11"
-last_modified_at: "2026-09-11 09:40:44 +0900"
+last_modified_at: "2026-09-11 09:50:27 +0900"
 mermaid: false
 ---
 ## 1. 결론
@@ -843,6 +843,7 @@ Spring Security를 도입했다고 다음이 자동 해결되지는 않습니다
 ---
 
 ## 22. 장점/단점 최종 비교
+
 | 항목               | 장점             | 단점/주의                      |
 | ---------------- | -------------- | -------------------------- |
 | 인증               | 표준 구조          | 기존 로그인 대규모 수정              |
@@ -1115,6 +1116,7 @@ LocalStorage X
 ---
 
 ## 28. 현재 프로젝트 기준 최종 평가
+
 | 평가항목                       | 판단          |
 | -------------------------- | ----------- |
 | Spring Security 도입 필요성     | **높음**      |
@@ -1156,11 +1158,11 @@ JSESSIONID Cookie
 특히 도입 목적을: `Session을 없애기 위한 것` 이 아니라 **`현재 Filter/Interceptor/Controller에 분산된 인증·인가·Session 보안 로직을 Spring Security라는 하나의 표준 보안 계층으로 통합하는 것`** 으로 잡는 것이 맞습니다.
 그리고 현재 시스템에서는 
 
-**① Session ID 변경과 기존 중복로그인 로직의 충돌, 
-② AJAX의 302/401/403 처리, 
-③ CSRF 적용에 따른 기존 POST 호출 장애, 
-④ 2 WAS Session clustering에서 CustomPrincipal serialization, 
-⑤ Spring Security 5.8의 보안 패치 정책** 
+- ① Session ID 변경과 기존 중복로그인 로직의 충돌
+- ② AJAX의 302/401/403 처리
+- ③ CSRF 적용에 따른 기존 POST 호출 장애
+- ④ 2 WAS Session clustering에서 CustomPrincipal serialization
+- ⑤ Spring Security 5.8의 보안 패치 정책 
 
 이 다섯 항목이 실제 도입 성패를 좌우할 핵심 점검사항입니다.
 <details>

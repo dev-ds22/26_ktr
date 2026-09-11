@@ -426,6 +426,7 @@ Cookie: ACCESS_TOKEN=...
 
 이면 브라우저가 자동으로 전송하므로 CSRF를 고려해야 합니다.
 Spring Security도 로그인 가능한 브라우저 애플리케이션에서 CSRF 방어를 중요하게 다루고 있으며 기본적으로 unsafe HTTP method에 대한 CSRF 보호를 제공합니다. 
+
 따라서:
 ```text
 HttpOnly
@@ -688,6 +689,7 @@ LoginVO loginVO =
 
 long userSn = loginVO.getUserSn();
 ```
+
 Spring Security 도입 후:
 ```java
 Authentication authentication =
@@ -698,6 +700,7 @@ CustomUserPrincipal principal =
 
 long userSn = principal.getUserSn();
 ```
+
 또는 Controller:
 ```java
 public String myPage(
@@ -780,6 +783,7 @@ Filter session 검사
 Controller session 검사
 ```
 전수조사합니다.
+
 특히 다음을 별도로 검색해야 합니다.
 ```text
 LOGIN_INFO
@@ -850,6 +854,7 @@ Spring Security
 if ("ADMIN".equals(session.getAttribute("role"))) {
 ```
 제거.
+
 대신:
 ```java
 @PreAuthorize("hasRole('ADMIN')")
@@ -931,6 +936,7 @@ aud
 ---
 
 ## 22. `JWT vs Opaque Token`도 먼저 선택해야 함
+
 | 구분            | JWT      | Opaque Token |
 | ------------- | -------- | ------------ |
 | Token 자체 정보   | 있음       | 없음           |
@@ -941,6 +947,7 @@ aud
 | Stateless     | 가능       | Stateful     |
 | 구현 난이도        | 중        | 중            |
 | 커머스 로그인 제어    | 별도 보완 필요 | 유리           |
+
 - Spring Security는 둘 다 Resource Server 방식으로 지원하며, Opaque Token은 Introspection Endpoint 또는 backing store 등을 통해 유효성을 판단할 수 있습니다. 
 ---
 
@@ -1026,7 +1033,7 @@ Logout 시 Client Token 삭제만 수행
 ```
 Redis에 대한 결론도 명확합니다.
 
-> **JWT Token을 사용하기 위해 Redis가 필수인 것은 아닙니다.**
->
-> 그러나 현재 요구사항에 있는 **중복로그인 방지, 기존 로그인 즉시 폐기, 2 WAS간 로그인 상태 일관성, 강제 로그아웃**까지 Token 환경에서 동일하게 구현하려면 Redis 또는 MariaDB 같은 중앙 상태 저장소가 사실상 필요합니다.
+**JWT Token을 사용하기 위해 Redis가 필수인 것은 아닙니다.**
+그러나 현재 요구사항에 있는 **중복로그인 방지, 기존 로그인 즉시 폐기, 2 WAS간 로그인 상태 일관성, 강제 로그아웃**까지 Token 환경에서 동일하게 구현하려면 Redis 또는 MariaDB 같은 중앙 상태 저장소가 사실상 필요합니다.
+
 그리고 이 경우에도 **Access Token 전체를 Redis에 저장하는 방식보다는 `Access JWT = Stateless`, `Refresh/Revoke/LoginVersion = Stateful`로 분리하는 구조가 현재 시스템에는 가장 적합**하다고 판단합니다.
