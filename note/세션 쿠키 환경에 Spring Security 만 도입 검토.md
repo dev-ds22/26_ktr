@@ -1120,6 +1120,7 @@ LocalStorage X
 | Spring Security 5.8 OSS 지원 | **종료**      |
 | 장기 Upgrade 계획              | 필요          |
 
+
 ## 최종적으로 권장하는 방향
 
 현재 26_KTR 구조에서는:
